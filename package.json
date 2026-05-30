@@ -1,0 +1,1 @@
+{"scripts":{"dev":"node scripts/dev-server.mjs","build":"node scripts/build.mjs","test":"node --test tests/*.test.mjs","preview":"node scripts/dev-server.mjs dist 4173"},"name":"agent-work-console","private":true,"version":"0.1.0","type":"module"}
