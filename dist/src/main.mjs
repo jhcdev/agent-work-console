@@ -317,12 +317,14 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
     state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
     const selectedChanged = state.selectedTaskId !== selectedBefore;
     const nextSelectedTask = state.tasks.find((task) => task.id === state.selectedTaskId);
-    const reloadMessages = shouldReloadSelectedMessages({
+    const pollLatestMessages = Boolean(state.selectedTaskId && !document.hidden);
+    const reloadMessages = pollLatestMessages || shouldReloadSelectedMessages({
       selectedChanged,
       loadMessages,
       previousTask: previousSelectedTask,
       nextTask: nextSelectedTask,
     });
+    const messageWasNearBottom = isMessageListNearBottom();
     render({
       restoreSearchFocus: searchCaret !== undefined,
       searchCaret,
@@ -335,8 +337,9 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
       await loadSelectedMessages({
         restoreBoardScroll: true,
         boardScrollTop,
-        restoreMessageScroll: !selectedChanged,
+        restoreMessageScroll: !selectedChanged && !messageWasNearBottom,
         messageScrollTop,
+        scrollMessagesToBottom: selectedChanged || messageWasNearBottom,
         silent: !loadMessages && !selectedChanged,
       });
     }
@@ -560,6 +563,12 @@ function saveTaskStatusOverrides() {
 
 function getMessageScrollTop() {
   return document.getElementById('messageList')?.scrollTop ?? 0;
+}
+
+function isMessageListNearBottom(thresholdPx = 80) {
+  const list = document.getElementById('messageList');
+  if (!list) return true;
+  return list.scrollHeight - list.scrollTop - list.clientHeight <= thresholdPx;
 }
 
 function restoreMessageScroll(scrollTop = 0) {
