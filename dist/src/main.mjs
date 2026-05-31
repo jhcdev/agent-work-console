@@ -36,6 +36,8 @@ const state = {
   chatFocusMode: (localStorage.getItem('hermesWork.chatFocusMode') || localStorage.getItem('agentConsole.chatFocusMode')) === 'true',
   searchComposing: false,
   draggedWorkspaceId: '',
+  userScrollingUntil: 0,
+  lastMessageSignature: '',
 };
 const root = document.getElementById('root');
 
@@ -75,6 +77,7 @@ function bind() {
     state.selectedTaskId = firstVisibleTaskId();
     state.sessionMessages = [];
     state.messageLimit = MESSAGE_LOAD_LIMIT;
+    state.lastMessageSignature = '';
     render({ restoreBoardScroll: true, boardScrollTop });
     if (state.selectedTaskId) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   }));
@@ -111,6 +114,7 @@ function bind() {
     state.selectedTaskId = firstVisibleTaskId();
     state.sessionMessages = [];
     state.messageLimit = MESSAGE_LOAD_LIMIT;
+    state.lastMessageSignature = '';
     render({ restoreBoardScroll: true, boardScrollTop });
     if (state.selectedTaskId) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   }));
@@ -119,6 +123,7 @@ function bind() {
     state.selectedTaskId = el.dataset.task;
     state.sessionMessages = [];
     state.messageLimit = MESSAGE_LOAD_LIMIT;
+    state.lastMessageSignature = '';
     state.mobileSessionListOpen = false;
     render({ restoreBoardScroll: true, boardScrollTop });
     await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
@@ -139,7 +144,7 @@ function bind() {
   document.getElementById('newSession')?.addEventListener('click', createNewSession);
   document.getElementById('sessionChatForm')?.addEventListener('submit', sendChatPrompt);
   document.getElementById('chatInput')?.addEventListener('keydown', submitChatOnEnter);
-  document.getElementById('messageList')?.addEventListener('scroll', maybeLoadOlderMessages);
+  document.getElementById('messageList')?.addEventListener('scroll', onMessageListScroll);
   document.getElementById('chatResizeHandle')?.addEventListener('pointerdown', startDetailPanelResize);
   document.getElementById('toggleSessionList')?.addEventListener('click', () => {
     state.mobileSessionListOpen = true;
@@ -313,26 +318,32 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
   const messageScrollTop = getMessageScrollTop();
   try {
     const nextTasks = (await client().listTasks({ maxPages: force || loadMessages ? 25 : 1 })).map(applyTaskOverrides);
+    const previousTasksSignature = tasksActivitySignature(state.tasks);
     state.tasks = force || loadMessages ? nextTasks : mergeTasksById(state.tasks, nextTasks);
+    const nextTasksSignature = tasksActivitySignature(state.tasks);
     state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
     const selectedChanged = state.selectedTaskId !== selectedBefore;
     const nextSelectedTask = state.tasks.find((task) => task.id === state.selectedTaskId);
     const messageWasNearBottom = isMessageListNearBottom();
-    const pollLatestMessages = Boolean(state.selectedTaskId && !document.hidden && messageWasNearBottom);
+    const userIsScrollingHistory = isUserScrollingHistory();
+    const pollLatestMessages = Boolean(state.selectedTaskId && !document.hidden && messageWasNearBottom && !userIsScrollingHistory);
     const reloadMessages = pollLatestMessages || shouldReloadSelectedMessages({
       selectedChanged,
       loadMessages,
       previousTask: previousSelectedTask,
       nextTask: nextSelectedTask,
     });
-    render({
-      restoreSearchFocus: searchCaret !== undefined,
-      searchCaret,
-      restoreBoardScroll: true,
-      boardScrollTop,
-      restoreMessageScroll: !selectedChanged,
-      messageScrollTop,
-    });
+    const shouldRenderTasks = force || loadMessages || selectedChanged || previousTasksSignature !== nextTasksSignature;
+    if (shouldRenderTasks) {
+      render({
+        restoreSearchFocus: searchCaret !== undefined,
+        searchCaret,
+        restoreBoardScroll: true,
+        boardScrollTop,
+        restoreMessageScroll: !selectedChanged,
+        messageScrollTop,
+      });
+    }
     if (state.selectedTaskId && reloadMessages) {
       await loadSelectedMessages({
         restoreBoardScroll: true,
@@ -360,6 +371,7 @@ async function createNewSession() {
     state.query = '';
     state.sessionMessages = [];
     state.messageLimit = MESSAGE_LOAD_LIMIT;
+    state.lastMessageSignature = '';
     state.pendingLocalMessages = state.pendingLocalMessages.filter((message) => message.sessionId !== task.id);
     state.mobileSessionListOpen = false;
     state.chatState = { ...state.chatState, loading: false, error: '' };
@@ -381,23 +393,33 @@ async function loadSelectedMessages(options = {}) {
       limit: options.limit || state.messageLimit || MESSAGE_LOAD_LIMIT,
       maxContentChars: MESSAGE_MAX_CONTENT_CHARS,
     });
-    state.sessionMessages = fetchedMessages;
+    const nextSignature = messageSignature(fetchedMessages);
+    const sameMessages = options.silent && nextSignature === state.lastMessageSignature;
     state.chatState = {
       ...state.chatState,
       loading: false,
       error: '',
       totalCount: fetchedMessages.totalCount ?? fetchedMessages.length,
-      loadedCount: fetchedMessages.length,
+      loadedCount: sameMessages ? state.chatState.loadedCount : fetchedMessages.length,
       messageLimit: fetchedMessages.limit ?? options.limit ?? state.messageLimit ?? MESSAGE_LOAD_LIMIT,
     };
     state.messageLimit = fetchedMessages.limit ?? options.limit ?? state.messageLimit ?? MESSAGE_LOAD_LIMIT;
+    if (sameMessages) return;
+    state.sessionMessages = fetchedMessages;
+    state.lastMessageSignature = nextSignature;
     prunePersistedLocalMessages(state.selectedTaskId, fetchedMessages);
   } catch (error) {
     const fallback = state.tasks.find((task) => task.id === state.selectedTaskId)?.messages || [];
     state.sessionMessages = fallback;
+    state.lastMessageSignature = messageSignature(fallback);
     state.chatState = { ...state.chatState, loading: false, error: `대화내역을 불러오지 못했습니다: ${error.message}` };
   }
   render(options);
+}
+
+async function onMessageListScroll(event) {
+  state.userScrollingUntil = Date.now() + 1200;
+  await maybeLoadOlderMessages(event);
 }
 
 async function maybeLoadOlderMessages(event) {
@@ -510,6 +532,36 @@ function mergeTasksById(currentTasks, refreshedTasks) {
   return [...byId.values()].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
 }
 
+function tasksActivitySignature(tasks = []) {
+  return tasks.map((task) => [
+    task.id,
+    task.updatedAt,
+    task.messageCount,
+    task.status,
+    task.workspaceId,
+    task.title,
+  ].join(':')).join('|');
+}
+
+function messageSignature(messages = []) {
+  const total = messages.totalCount ?? messages.length;
+  const limit = messages.limit ?? '';
+  const first = messages[0] || {};
+  const last = messages[messages.length - 1] || {};
+  return [
+    total,
+    limit,
+    messages.length,
+    first.id || first.at || first.timestamp || '',
+    last.id || last.at || last.timestamp || '',
+    last.role || '',
+    last.toolName || '',
+    last.toolStatus || '',
+    String(last.text || last.content || '').length,
+    String(last.text || last.content || '').slice(-80),
+  ].join('|');
+}
+
 function readUserWorkspaces() {
   try {
     return normalizeUserWorkspaces(JSON.parse(localStorage.getItem('hermesWork.userWorkspaces') || '[]'));
@@ -609,11 +661,16 @@ function currentMovableWorkspaceIds() {
     .map((workspace) => workspace.id);
 }
 
+function isUserScrollingHistory() {
+  return Date.now() < Number(state.userScrollingUntil || 0);
+}
+
 function shouldSkipRefreshForUserInput() {
   const activeId = document.activeElement?.id;
   return Boolean(
     document.hidden
       || state.searchComposing
+      || isUserScrollingHistory()
       || activeId === 'categoryName'
       || activeId === 'categoryMove'
       || activeId === 'statusMove'
