@@ -14,7 +14,7 @@ export class HermesApiClient {
   }
 
   url(path) {
-    const base = (this.config.baseUrl || 'http://127.0.0.1:8642').replace(/\/$/, '');
+    const base = (this.config.baseUrl || '/hermes').replace(/\/$/, '');
     return `${base}${path}`;
   }
 

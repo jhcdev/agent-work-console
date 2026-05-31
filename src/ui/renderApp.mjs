@@ -18,7 +18,7 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
       </nav>
       <section class="connection-card">
         <div class="section-title">Hermes 연결</div>
-        <label>Base URL<input id="baseUrl" value="http://127.0.0.1:8642" /></label>
+        <label>Base URL<input id="baseUrl" value="/hermes" /></label>
         <label>API Key<input id="apiKey" type="password" placeholder="API_SERVER_KEY" /></label>
         <label>Session Key<input id="sessionKey" value="web:jihun:agent-console" /></label>
         <button class="primary" id="saveConfig">설정 저장</button>
