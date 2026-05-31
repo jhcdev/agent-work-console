@@ -108,20 +108,32 @@ test('renders fast-history notice and truncation marker', () => {
   assert.match(html, /긴 내용 9,000자를 접었습니다/);
 });
 
-test('renders tool usage like a compact Discord activity row and hides descriptions', () => {
+test('renders grouped tool activity rows with icons, argument previews, counts, and distinct agent replies', () => {
   const html = createAppMarkup({
     tasks: mockTasks,
     selectedTaskId: 'task-tsr-annotation',
     sessionMessages: [
-      { role: 'assistant', text: '도구 사용', toolName: 'read_file', toolStatus: 'running', at: new Date().toISOString() },
+      { role: 'assistant', text: '도구 사용', toolName: 'read_file', toolStatus: 'running', toolCalls: [{ name: 'read_file', preview: '"/mnt/c/Users/User/Documents/Obsidian Vault/LLM Wiki/SCHEMA.md"' }], at: new Date().toISOString() },
+      { role: 'assistant', text: '도구 사용', toolName: 'read_file', toolStatus: 'running', toolCalls: [{ name: 'read_file', preview: '"/mnt/c/Users/User/Documents/Obsidian Vault/LLM Wiki/SCHEMA.md"' }], at: new Date().toISOString() },
+      { role: 'assistant', text: '도구 사용', toolName: 'skill_view', toolStatus: 'running', toolCalls: [{ name: 'skill_view', preview: '"hermes-agent"' }], at: new Date().toISOString() },
       { role: 'tool', text: '성공 · 42 lines', toolName: 'read_file', toolStatus: 'success', at: new Date().toISOString() },
+      { role: 'agent', text: '수정 완료했습니다.', at: new Date().toISOString() },
     ],
   });
 
-  assert.match(html, /tool-message/);
-  assert.match(html, /도구 사용/);
+  assert.match(html, /tool-activity-group/);
+  assert.match(html, /도구 활동/);
+  assert.match(html, /📖/);
   assert.match(html, /read_file/);
+  assert.match(html, /SCHEMA.md/);
+  assert.match(html, /×2/);
+  assert.match(html, /📚/);
+  assert.match(html, /skill_view/);
+  assert.match(html, /&quot;hermes-agent&quot;/);
   assert.match(html, /성공 · 42 lines/);
+  assert.match(html, /Hermes Agent/);
+  assert.match(html, /agent-message/);
+  assert.match(html, /<span class="agent-mark">앱<\/span>/);
   assert.doesNotMatch(html, /CSV prediction-first annotation flow/);
   assert.doesNotMatch(html, /아래에 프롬프트를 입력/);
   assert.doesNotMatch(html, /맨 위로 스크롤하면/);

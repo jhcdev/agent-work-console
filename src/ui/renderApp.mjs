@@ -86,7 +86,7 @@ function sessionChat(task, messages, chatState, chatFocusMode, workspaces) {
     <div class="chat-head"><div><div class="section-title">대화내역</div></div>${chatState.loading ? '<span class="sync-pill">불러오는 중</span>' : ''}</div>
     ${chatState.error ? `<p class="error-text">${esc(chatState.error)}</p>` : ''}
     <div class="message-list" id="messageList">
-      ${list.map(messageBubble).join('') || '<p class="muted">아직 표시할 대화가 없습니다.</p>'}
+      ${renderMessageTimeline(list) || '<p class="muted">아직 표시할 대화가 없습니다.</p>'}
     </div>
     <form id="sessionChatForm" class="chat-form" data-session="${esc(task.id)}">
       <textarea id="chatInput" name="message" rows="3" placeholder="이 세션에 이어서 프롬프트 입력…" aria-label="세션 프롬프트 입력" ${chatState.sending ? 'disabled' : ''}></textarea>
@@ -98,38 +98,112 @@ function sessionChat(task, messages, chatState, chatFocusMode, workspaces) {
   </section>`;
 }
 
+function renderMessageTimeline(messages) {
+  const rendered = [];
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index];
+    if (!isToolActivity(message)) {
+      rendered.push(messageBubble(message));
+      continue;
+    }
+    const group = [];
+    while (index < messages.length && isToolActivity(messages[index])) {
+      group.push(messages[index]);
+      index += 1;
+    }
+    index -= 1;
+    rendered.push(toolActivityGroup(group));
+  }
+  return rendered.join('');
+}
+
+function isToolActivity(message) {
+  return Boolean(message?.toolName || message?.role === 'tool' || message?.toolCalls?.length);
+}
+
 function messageBubble(message) {
-  if (message.toolName || message.role === 'tool') return toolMessageBubble(message);
   const role = message.role || 'message';
   const text = message.text || message.content || '';
   const omitted = Number(message.omittedChars || 0);
   const truncated = message.truncated
     ? `<span class="truncated-note">긴 내용 ${omitted.toLocaleString('ko-KR')}자를 접었습니다.</span>`
     : '';
-  return `<article class="message ${esc(role)}">
-    <div class="message-meta"><b>${roleLabel(role)}</b><time>${formatRelativeTime(message.at || message.timestamp)}</time></div>
+  const isAgentRole = role === 'assistant' || role === 'agent';
+  const agentMark = isAgentRole ? '<span class="agent-mark">앱</span>' : '';
+  return `<article class="message ${esc(role)} ${isAgentRole ? 'agent-message' : ''}">
+    <div class="message-meta"><b>${roleLabel(role)}${agentMark}</b><time>${formatRelativeTime(message.at || message.timestamp)}</time></div>
     <p>${esc(text)}${truncated}</p>
   </article>`;
 }
 
-function toolMessageBubble(message) {
-  const status = message.toolStatus || 'success';
-  const label = status === 'running' ? '도구 사용' : status === 'error' ? '도구 실패' : '도구 완료';
-  const text = message.text || label;
-  return `<article class="message tool-message ${esc(status)}">
-    <div class="tool-icon">⌘</div>
-    <div class="tool-body"><div class="tool-line"><b>${label}</b><code>${esc(message.toolName || 'tool')}</code><time>${formatRelativeTime(message.at || message.timestamp)}</time></div><p>${esc(text)}</p></div>
+function toolActivityGroup(messages) {
+  const rows = compressToolRows(messages.flatMap(toolActivityEntries));
+  const lastTime = messages.at(-1)?.at || messages.at(-1)?.timestamp;
+  return `<article class="message tool-activity-group">
+    <div class="tool-activity-meta"><b>도구 활동</b><time>${formatRelativeTime(lastTime)}</time></div>
+    <div class="tool-activity-list">${rows.map(toolActivityRow).join('')}</div>
   </article>`;
 }
 
-function historyNotice(chatState) {
-  const total = Number(chatState.totalCount || 0);
-  const loaded = Number(chatState.loadedCount || 0);
-  if (!total || !loaded || total <= loaded) return '';
-  return `<div class="history-notice">빠른 표시를 위해 최근 ${loaded.toLocaleString('ko-KR')} / 전체 ${total.toLocaleString('ko-KR')}개 메시지를 먼저 로딩했습니다. 맨 위로 스크롤하면 이전 대화가 추가로 표시됩니다.</div>`;
+function toolActivityEntries(message) {
+  const status = message.toolStatus || (message.role === 'tool' ? 'success' : 'running');
+  if (Array.isArray(message.toolCalls) && message.toolCalls.length > 0) {
+    return message.toolCalls.map((call) => ({
+      name: call.name,
+      preview: call.preview || '',
+      status,
+      text: status === 'running' ? '' : message.text || '',
+    }));
+  }
+  return [{
+    name: message.toolName || 'tool',
+    preview: '',
+    status,
+    text: message.text || '',
+  }];
+}
+
+function compressToolRows(entries) {
+  const rows = [];
+  for (const entry of entries) {
+    const key = `${entry.status}|${entry.name}|${entry.preview}|${entry.text}`;
+    const previous = rows.at(-1);
+    if (previous?.key === key) {
+      previous.count += 1;
+    } else {
+      rows.push({ ...entry, key, count: 1 });
+    }
+  }
+  return rows;
+}
+
+function toolActivityRow(entry) {
+  const statusLabel = entry.status === 'running' ? '사용' : entry.status === 'error' ? '실패' : '완료';
+  const statusClass = entry.status || 'success';
+  const preview = entry.preview ? `<span class="tool-activity-preview">${esc(entry.preview)}</span>` : '';
+  const detail = entry.text && entry.text !== '도구 사용' ? `<span class="tool-activity-result">${esc(entry.text)}</span>` : '';
+  const count = entry.count > 1 ? `<span class="tool-activity-count">×${entry.count.toLocaleString('ko-KR')}</span>` : '';
+  return `<div class="tool-activity-row ${esc(statusClass)}">
+    <span class="tool-activity-icon" aria-hidden="true">${toolIcon(entry.name)}</span>
+    <code>${esc(entry.name)}</code>
+    ${preview}
+    ${count}
+    <span class="tool-activity-status">${statusLabel}</span>
+    ${detail}
+  </div>`;
+}
+
+function toolIcon(name) {
+  const normalized = String(name || '').replace(/^functions\./, '');
+  const icons = {
+    read_file: '📖', skill_view: '📚', terminal: '💻', patch: '🔧', write_file: '✍️', search_files: '🔎', todo: '📋',
+    browser_navigate: '🌐', browser_console: '🖥️', browser_click: '🖱️', browser_type: '⌨️', browser_snapshot: '📸', browser_vision: '👁️',
+    web_search: '🔍', web_extract: '📰', execute_code: '🐍', delegate_task: '🤖', image_generate: '🎨', memory: '🧠',
+  };
+  return icons[normalized] || '⚙️';
 }
 
 function roleLabel(role) {
-  const labels = { user: '사용자', assistant: 'Hermes', tool: '도구', system: '시스템' };
+  const labels = { user: '사용자', assistant: 'Hermes Agent', agent: 'Hermes Agent', tool: '도구', system: '시스템' };
   return labels[role] || role;
 }

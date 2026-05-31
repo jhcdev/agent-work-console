@@ -137,9 +137,8 @@ function defaultSessionSummary({ messageCount, source, session }) {
 
 export function normalizeMessage(message) {
   if (!message) return undefined;
-  const toolCallNames = Array.isArray(message.tool_calls)
-    ? message.tool_calls.map((call) => call?.function?.name || call?.name).filter(Boolean)
-    : [];
+  const toolCalls = normalizeToolCalls(message.tool_calls);
+  const toolCallNames = toolCalls.map((call) => call.name).filter(Boolean);
   const isToolResult = message.role === 'tool' || Boolean(message.tool_name);
   const toolName = message.tool_name || toolCallNames.join(', ');
   const toolSummary = summarizeToolMessage(message, toolCallNames);
@@ -157,10 +156,53 @@ export function normalizeMessage(message) {
     text,
     at: timestampToIso(message.timestamp || message.created_at || message.at) || new Date().toISOString(),
     toolName,
+    toolCalls,
     toolStatus: toolSummary.status || (toolCallNames.length && !isToolResult ? 'running' : undefined),
     truncated,
     omittedChars,
   };
+}
+
+function normalizeToolCalls(toolCalls) {
+  if (!Array.isArray(toolCalls)) return [];
+  return toolCalls.map((call) => {
+    const fn = call?.function || {};
+    const name = fn.name || call?.name || '';
+    return {
+      name,
+      preview: toolArgumentsPreview(fn.arguments ?? call?.arguments ?? call?.args ?? call?.input),
+    };
+  }).filter((call) => call.name);
+}
+
+function toolArgumentsPreview(value) {
+  const parsed = parseToolArguments(value);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return compactArgumentText(value);
+  if (Array.isArray(parsed.todos)) return `작업 ${parsed.todos.length.toLocaleString('ko-KR')}개 업데이트`;
+  const preferredKeys = ['path', 'command', 'query', 'pattern', 'name', 'url', 'issueIdOrKey', 'text', 'message'];
+  const key = preferredKeys.find((candidate) => Object.prototype.hasOwnProperty.call(parsed, candidate)) || Object.keys(parsed)[0];
+  if (!key) return '';
+  const raw = parsed[key];
+  if (raw === undefined || raw === null) return '';
+  const rendered = typeof raw === 'string' ? raw : JSON.stringify(raw);
+  return compactArgumentText(rendered);
+}
+
+function parseToolArguments(value) {
+  if (value && typeof value === 'object') return value;
+  if (typeof value !== 'string') return undefined;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function compactArgumentText(value) {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  const wrapped = text.startsWith('"') || text.startsWith('{') || text.startsWith('[') ? text : `"${text}"`;
+  return wrapped.length > 90 ? `${wrapped.slice(0, 90)}…` : wrapped;
 }
 
 function summarizeToolMessage(message, toolCallNames = []) {

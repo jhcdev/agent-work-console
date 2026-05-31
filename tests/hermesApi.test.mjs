@@ -156,6 +156,7 @@ test('normalizes persisted session messages for the chat panel', async () => {
   assert.equal(messages[0].text, 'hello');
   assert.equal(messages[1].text, '도구 사용');
   assert.equal(messages[1].toolName, 'read_file');
+  assert.deepEqual(messages[1].toolCalls, [{ name: 'read_file', preview: '' }]);
   assert.equal(messages[1].toolStatus, 'running');
   assert.equal(messages[2].text, 'tool output');
   assert.match(messages[0].at, /T/);
@@ -176,6 +177,7 @@ test('summarizes tool result JSON instead of exposing raw payload text', async (
   const messages = await client.listMessages('session-1');
 
   assert.equal(messages[0].toolName, 'read_file');
+  assert.deepEqual(messages[0].toolCalls, [{ name: 'read_file', preview: '"README.md"' }]);
   assert.equal(messages[0].toolStatus, 'running');
   assert.equal(messages[0].text, '도구 사용');
   assert.equal(messages[1].toolName, 'read_file');
