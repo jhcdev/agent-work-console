@@ -141,15 +141,20 @@ export function normalizeMessage(message) {
     : [];
   const rawText = String(message.content || message.text || (toolCallNames.length ? `tool call: ${toolCallNames.join(', ')}` : '') || '').trim();
   const clientMax = 8_000;
-  const text = rawText.length > clientMax ? rawText.slice(0, clientMax) : rawText;
+  const truncated = Boolean(message.content_truncated || rawText.length > clientMax);
+  const omittedChars = Number(message.content_omitted_chars || Math.max(0, rawText.length - clientMax) || 0);
+  const preview = rawText.length > clientMax ? rawText.slice(0, clientMax) : rawText;
+  const text = truncated && omittedChars > 0
+    ? `${preview}\n\n… ${omittedChars.toLocaleString('ko-KR')}자 생략됨`
+    : preview;
   return {
     id: message.id,
     role: message.role || 'message',
     text,
     at: timestampToIso(message.timestamp || message.created_at || message.at) || new Date().toISOString(),
     toolName: message.tool_name || toolCallNames.join(', '),
-    truncated: Boolean(message.content_truncated || rawText.length > clientMax),
-    omittedChars: Number(message.content_omitted_chars || Math.max(0, rawText.length - clientMax) || 0),
+    truncated,
+    omittedChars,
   };
 }
 

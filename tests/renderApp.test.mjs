@@ -47,6 +47,21 @@ test('renders chat focus mode with a collapse action', () => {
   assert.match(html, /채팅창 축소/);
 });
 
+test('renders fast-history notice and truncated message marker', () => {
+  const messages = [
+    { role: 'tool', text: '긴 도구 출력', truncated: true, omittedChars: 12345, at: new Date().toISOString() },
+  ];
+  const html = createAppMarkup({
+    tasks: mockTasks,
+    selectedTaskId: 'task-tsr-annotation',
+    sessionMessages: messages,
+    chatState: { totalCount: 1000, loadedCount: 300 },
+  });
+
+  assert.match(html, /최근 300 \/ 전체 1,000개 메시지만 로딩/);
+  assert.match(html, /긴 내용 12,345자를 접었습니다/);
+});
+
 test('does not show an unrelated detail panel when a category has no visible tasks', () => {
   const html = createAppMarkup({
     tasks: mockTasks,
