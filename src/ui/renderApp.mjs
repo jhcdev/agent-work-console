@@ -58,8 +58,11 @@ function sessionChat(task, messages, chatState) {
       ${list.map(messageBubble).join('') || '<p class="muted">아직 이 세션에 표시할 대화가 없습니다. 아래에 프롬프트를 입력하면 이 세션에 이어서 남습니다.</p>'}
     </div>
     <form id="sessionChatForm" class="chat-form" data-session="${esc(task.id)}">
-      <textarea id="chatInput" name="message" rows="3" placeholder="이 세션에 이어서 프롬프트 입력…" ${chatState.sending ? 'disabled' : ''}></textarea>
-      <button class="primary" type="submit" ${chatState.sending ? 'disabled' : ''}>${chatState.sending ? '전송 중…' : '보내기'}</button>
+      <textarea id="chatInput" name="message" rows="3" placeholder="이 세션에 이어서 프롬프트 입력…" aria-label="세션 프롬프트 입력" ${chatState.sending ? 'disabled' : ''}></textarea>
+      <div class="chat-actions">
+        <span class="shortcut-hint">Enter로 보내기 · Shift+Enter 줄바꿈</span>
+        <button class="primary" type="submit" ${chatState.sending ? 'disabled' : ''}>${chatState.sending ? '전송 중…' : '보내기'}</button>
+      </div>
     </form>
   </section>`;
 }

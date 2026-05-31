@@ -1,5 +1,6 @@
 import { mockTasks } from './mocks/mockData.mjs';
 import { createAppMarkup } from './ui/renderApp.mjs';
+import { shouldSubmitChatShortcut } from './ui/keyboardShortcuts.mjs';
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 
 const state = {
@@ -51,6 +52,13 @@ function bind() {
   document.getElementById('refreshTasks')?.addEventListener('click', refreshTasks);
   document.getElementById('newSession')?.addEventListener('click', createNewSession);
   document.getElementById('sessionChatForm')?.addEventListener('submit', sendChatPrompt);
+  document.getElementById('chatInput')?.addEventListener('keydown', submitChatOnEnter);
+}
+
+function submitChatOnEnter(event) {
+  if (!shouldSubmitChatShortcut(event)) return;
+  event.preventDefault();
+  event.currentTarget?.form?.requestSubmit();
 }
 
 async function loadServerConfig() {
