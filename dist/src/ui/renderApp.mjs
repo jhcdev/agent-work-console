@@ -6,8 +6,8 @@ function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 }
 
-export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', status = 'all', query = '', sessionMessages = [], chatState = {}, chatFocusMode = false, userWorkspaces = [], categoryDraft = '' }) {
-  const workspaces = buildWorkspaceList(tasks, userWorkspaces);
+export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', status = 'all', query = '', sessionMessages = [], chatState = {}, chatFocusMode = false, userWorkspaces = [], workspaceOrder = [], categoryDraft = '' }) {
+  const workspaces = buildWorkspaceList(tasks, userWorkspaces, workspaceOrder);
   const visibleTasks = filterTasks(tasks, { workspaceId, status, query });
   const selected = selectedTaskId
     ? tasks.find((task) => task.id === selectedTaskId)
@@ -49,11 +49,15 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
 
 function workspaceButton(workspace, activeId) {
   const badge = workspace.auto ? '<small>자동</small>' : workspace.custom ? '<small>사용자</small>' : '';
-  const dragAttrs = workspace.custom
+  const draggable = workspace.custom || workspace.auto;
+  const dragAttrs = draggable
     ? ` draggable="true" data-workspace-drag="${esc(workspace.id)}" data-workspace-drop="${esc(workspace.id)}"`
     : '';
-  const controls = workspace.custom
-    ? `<span class="workspace-controls"><span class="drag-handle" aria-label="${esc(workspace.name)} 드래그 정렬" title="드래그해서 정렬">⋮⋮</span><button class="mini danger" data-workspace-delete="${esc(workspace.id)}" type="button" aria-label="${esc(workspace.name)} 삭제">삭제</button></span>`
+  const deleteButton = workspace.custom
+    ? `<button class="mini danger" data-workspace-delete="${esc(workspace.id)}" type="button" aria-label="${esc(workspace.name)} 삭제">삭제</button>`
+    : '';
+  const controls = draggable
+    ? `<span class="workspace-controls"><span class="drag-handle" aria-label="${esc(workspace.name)} 드래그 정렬" title="드래그해서 정렬">⋮⋮</span>${deleteButton}</span>`
     : '';
   return `<div class="workspace-row ${workspace.id === activeId ? 'active' : ''}"${dragAttrs}>
     <button class="workspace ${workspace.id === activeId ? 'active' : ''}" data-workspace="${esc(workspace.id)}" type="button"><span>${esc(workspace.icon)}</span><strong>${esc(workspace.name)}</strong>${badge}</button>
@@ -112,7 +116,7 @@ function historyNotice(chatState) {
   const total = Number(chatState.totalCount || 0);
   const loaded = Number(chatState.loadedCount || 0);
   if (!total || !loaded || total <= loaded) return '';
-  return `<div class="history-notice">빠른 표시를 위해 최근 ${loaded.toLocaleString('ko-KR')} / 전체 ${total.toLocaleString('ko-KR')}개 메시지만 로딩했습니다.</div>`;
+  return `<div class="history-notice">빠른 표시를 위해 최근 ${loaded.toLocaleString('ko-KR')} / 전체 ${total.toLocaleString('ko-KR')}개 메시지를 먼저 로딩했습니다. 맨 위로 스크롤하면 이전 대화가 추가로 표시됩니다.</div>`;
 }
 
 function roleLabel(role) {

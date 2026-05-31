@@ -5,7 +5,7 @@ import { mockTasks } from '../src/mocks/mockData.mjs';
 
 test('renders a lean session kanban and chat panel', () => {
   const html = createAppMarkup({
-    tasks: mockTasks,
+    tasks: [...mockTasks, { id: 'auto-task', workspaceId: 'meeting-notes', title: 'Meeting notes', summary: 'auto', status: 'running', updatedAt: new Date().toISOString(), owner: 'Jihun' }],
     selectedTaskId: 'task-tsr-annotation',
     userWorkspaces: [{ id: 'custom-review', name: '리뷰', icon: '•', custom: true }],
     sessionMessages: [
@@ -46,6 +46,8 @@ test('renders a lean session kanban and chat panel', () => {
   assert.match(html, /삭제/);
   assert.match(html, /draggable="true"/);
   assert.match(html, /data-workspace-drag="custom-review"/);
+  assert.match(html, /data-workspace-drag="meeting-notes"/);
+  assert.match(html, /Meeting Notes/);
   assert.doesNotMatch(html, /data-workspace-move/);
   assert.doesNotMatch(html, />↑</);
   assert.doesNotMatch(html, />↓</);
@@ -78,7 +80,7 @@ test('renders fast-history notice and truncated message marker', () => {
     chatState: { totalCount: 1000, loadedCount: 300 },
   });
 
-  assert.match(html, /최근 300 \/ 전체 1,000개 메시지만 로딩/);
+  assert.match(html, /최근 300 \/ 전체 1,000개 메시지를 먼저 로딩/);
   assert.match(html, /긴 내용 12,345자를 접었습니다/);
 });
 
@@ -102,6 +104,6 @@ test('renders fast-history notice and truncation marker', () => {
     sessionMessages: [{ role: 'tool', text: 'x'.repeat(10), truncated: true, omittedChars: 9000, at: new Date().toISOString() }],
   });
 
-  assert.match(html, /최근 300 \/ 전체 1,200개 메시지만 로딩/);
+  assert.match(html, /최근 300 \/ 전체 1,200개 메시지를 먼저 로딩/);
   assert.match(html, /긴 내용 9,000자를 접었습니다/);
 });

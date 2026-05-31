@@ -5,11 +5,13 @@ import { detailWidthFromPointer, sanitizeDetailPanelWidth } from './ui/panelResi
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 import { filterTasks } from './domain/taskUtils.mjs';
 import { shouldReloadSelectedMessages } from './domain/sessionRefresh.mjs';
-import { createUserWorkspace, deleteUserWorkspace, matchUserWorkspaceForTask, reorderUserWorkspace, normalizeUserWorkspaces } from './domain/workspaces.mjs';
+import { nextLazyMessageLimit, shouldLazyLoadOlderMessages } from './domain/messageHistory.mjs';
+import { buildWorkspaceList, createUserWorkspace, deleteUserWorkspace, matchUserWorkspaceForTask, normalizeUserWorkspaces, reorderWorkspaceOrder } from './domain/workspaces.mjs';
 import { setStatusOverride } from './domain/statuses.mjs';
 
 const SESSION_REFRESH_INTERVAL_MS = 1000;
 const MESSAGE_LOAD_LIMIT = 150;
+const MESSAGE_LAZY_CHUNK_SIZE = 150;
 const MESSAGE_MAX_CONTENT_CHARS = 3_000;
 let refreshInFlight = false;
 
@@ -19,12 +21,14 @@ const state = {
   workspaceId: 'all',
   status: 'all',
   userWorkspaces: readUserWorkspaces(),
+  workspaceOrder: readWorkspaceOrder(),
   taskWorkspaceOverrides: readTaskWorkspaceOverrides(),
   taskStatusOverrides: readTaskStatusOverrides(),
   categoryDraft: '',
   query: '',
   connection: { baseUrl: '/hermes', sessionKey: 'web:jihun:hermes-work', useMockFallback: true },
   sessionMessages: [],
+  messageLimit: MESSAGE_LOAD_LIMIT,
   pendingLocalMessages: [],
   chatState: { loading: false, sending: false, error: '' },
   detailPanelWidth: sanitizeDetailPanelWidth(localStorage.getItem('hermesWork.detailPanelWidth') || localStorage.getItem('agentConsole.detailPanelWidth')),
@@ -57,6 +61,8 @@ function render(options = {}) {
   if (options.restoreBoardScroll) restoreBoardScroll(options.boardScrollTop);
   if (options.restoreMessageScroll) {
     restoreMessageScroll(options.messageScrollTop);
+  } else if (options.preserveMessageTopAnchor) {
+    restoreMessageTopAnchor(options.messageScrollTop, options.messageScrollHeight);
   } else if (options.scrollMessagesToBottom !== false) {
     scrollMessagesToBottom();
   }
@@ -68,6 +74,7 @@ function bind() {
     state.workspaceId = el.dataset.workspace;
     state.selectedTaskId = firstVisibleTaskId();
     state.sessionMessages = [];
+    state.messageLimit = MESSAGE_LOAD_LIMIT;
     render({ restoreBoardScroll: true, boardScrollTop });
     if (state.selectedTaskId) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   }));
@@ -83,12 +90,14 @@ function bind() {
     const deletedId = el.dataset.workspaceDelete;
     const result = deleteUserWorkspace(state.userWorkspaces, deletedId, state.tasks);
     state.userWorkspaces = result.workspaces;
+    state.workspaceOrder = state.workspaceOrder.filter((id) => id !== deletedId);
     state.tasks = result.tasks;
     Object.entries(state.taskWorkspaceOverrides).forEach(([taskId, workspaceId]) => {
       if (workspaceId === deletedId) delete state.taskWorkspaceOverrides[taskId];
     });
     if (state.workspaceId === deletedId) state.workspaceId = 'all';
     saveUserWorkspaces();
+    saveWorkspaceOrder();
     saveTaskWorkspaceOverrides();
     render({ restoreBoardScroll: true, boardScrollTop: getBoardScrollTop() });
   }));
@@ -101,6 +110,7 @@ function bind() {
     state.status = el.dataset.status;
     state.selectedTaskId = firstVisibleTaskId();
     state.sessionMessages = [];
+    state.messageLimit = MESSAGE_LOAD_LIMIT;
     render({ restoreBoardScroll: true, boardScrollTop });
     if (state.selectedTaskId) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   }));
@@ -108,6 +118,7 @@ function bind() {
     const boardScrollTop = getBoardScrollTop();
     state.selectedTaskId = el.dataset.task;
     state.sessionMessages = [];
+    state.messageLimit = MESSAGE_LOAD_LIMIT;
     state.mobileSessionListOpen = false;
     render({ restoreBoardScroll: true, boardScrollTop });
     await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
@@ -128,6 +139,7 @@ function bind() {
   document.getElementById('newSession')?.addEventListener('click', createNewSession);
   document.getElementById('sessionChatForm')?.addEventListener('submit', sendChatPrompt);
   document.getElementById('chatInput')?.addEventListener('keydown', submitChatOnEnter);
+  document.getElementById('messageList')?.addEventListener('scroll', maybeLoadOlderMessages);
   document.getElementById('chatResizeHandle')?.addEventListener('pointerdown', startDetailPanelResize);
   document.getElementById('toggleSessionList')?.addEventListener('click', () => {
     state.mobileSessionListOpen = true;
@@ -172,8 +184,8 @@ function dropWorkspaceDragTarget(event) {
   const targetId = event.currentTarget.dataset.workspaceDrop;
   document.querySelectorAll('.workspace-row.drop-target').forEach((el) => el.classList.remove('drop-target'));
   if (!draggedId || !targetId || draggedId === targetId) return;
-  state.userWorkspaces = reorderUserWorkspace(state.userWorkspaces, draggedId, targetId);
-  saveUserWorkspaces();
+  state.workspaceOrder = reorderWorkspaceOrder(currentMovableWorkspaceIds(), draggedId, targetId);
+  saveWorkspaceOrder();
   render({ restoreBoardScroll: true, boardScrollTop: getBoardScrollTop(), restoreMessageScroll: true, messageScrollTop: getMessageScrollTop() });
 }
 
@@ -237,10 +249,12 @@ function createCategory(event) {
   try {
     const result = createUserWorkspace(state.userWorkspaces, input?.value || state.categoryDraft || '');
     state.userWorkspaces = result.workspaces;
+    state.workspaceOrder = [...state.workspaceOrder.filter((id) => id !== result.workspace.id), result.workspace.id];
     state.workspaceId = result.workspace.id;
     state.categoryDraft = '';
     input.value = '';
     saveUserWorkspaces();
+    saveWorkspaceOrder();
     state.tasks = state.tasks.map(applyTaskOverrides);
     state.selectedTaskId = firstVisibleTaskId();
     state.sessionMessages = [];
@@ -290,7 +304,7 @@ async function loadServerConfig() {
 
 async function refreshTasks({ force = false, loadMessages = false } = {}) {
   if (refreshInFlight) return;
-  if (!force && (document.hidden || state.searchComposing || document.activeElement?.id === 'categoryName')) return;
+  if (!force && shouldSkipRefreshForUserInput()) return;
   refreshInFlight = true;
   const selectedBefore = state.selectedTaskId;
   const previousSelectedTask = state.tasks.find((task) => task.id === selectedBefore);
@@ -342,6 +356,7 @@ async function createNewSession() {
     state.status = 'all';
     state.query = '';
     state.sessionMessages = [];
+    state.messageLimit = MESSAGE_LOAD_LIMIT;
     state.pendingLocalMessages = state.pendingLocalMessages.filter((message) => message.sessionId !== task.id);
     state.mobileSessionListOpen = false;
     state.chatState = { ...state.chatState, loading: false, error: '' };
@@ -360,7 +375,7 @@ async function loadSelectedMessages(options = {}) {
   }
   try {
     const fetchedMessages = await client().listMessages(state.selectedTaskId, {
-      limit: MESSAGE_LOAD_LIMIT,
+      limit: options.limit || state.messageLimit || MESSAGE_LOAD_LIMIT,
       maxContentChars: MESSAGE_MAX_CONTENT_CHARS,
     });
     state.sessionMessages = fetchedMessages;
@@ -370,8 +385,9 @@ async function loadSelectedMessages(options = {}) {
       error: '',
       totalCount: fetchedMessages.totalCount ?? fetchedMessages.length,
       loadedCount: fetchedMessages.length,
-      messageLimit: fetchedMessages.limit ?? MESSAGE_LOAD_LIMIT,
+      messageLimit: fetchedMessages.limit ?? options.limit ?? state.messageLimit ?? MESSAGE_LOAD_LIMIT,
     };
+    state.messageLimit = fetchedMessages.limit ?? options.limit ?? state.messageLimit ?? MESSAGE_LOAD_LIMIT;
     prunePersistedLocalMessages(state.selectedTaskId, fetchedMessages);
   } catch (error) {
     const fallback = state.tasks.find((task) => task.id === state.selectedTaskId)?.messages || [];
@@ -379,6 +395,33 @@ async function loadSelectedMessages(options = {}) {
     state.chatState = { ...state.chatState, loading: false, error: `대화내역을 불러오지 못했습니다: ${error.message}` };
   }
   render(options);
+}
+
+async function maybeLoadOlderMessages(event) {
+  const list = event.currentTarget;
+  if (!shouldLazyLoadOlderMessages({
+    scrollTop: list.scrollTop,
+    loadedCount: state.chatState.loadedCount,
+    totalCount: state.chatState.totalCount,
+    loading: state.chatState.loading,
+  })) return;
+  const nextLimit = nextLazyMessageLimit({
+    loadedCount: state.chatState.loadedCount,
+    totalCount: state.chatState.totalCount,
+    currentLimit: state.messageLimit,
+    chunkSize: MESSAGE_LAZY_CHUNK_SIZE,
+  });
+  if (nextLimit <= state.messageLimit) return;
+  state.messageLimit = nextLimit;
+  await loadSelectedMessages({
+    limit: nextLimit,
+    silent: true,
+    preserveMessageTopAnchor: true,
+    messageScrollTop: list.scrollTop,
+    messageScrollHeight: list.scrollHeight,
+    restoreBoardScroll: true,
+    boardScrollTop: getBoardScrollTop(),
+  });
 }
 
 async function sendChatPrompt(event) {
@@ -476,6 +519,19 @@ function saveUserWorkspaces() {
   localStorage.setItem('hermesWork.userWorkspaces', JSON.stringify(normalizeUserWorkspaces(state.userWorkspaces)));
 }
 
+function readWorkspaceOrder() {
+  try {
+    const value = JSON.parse(localStorage.getItem('hermesWork.workspaceOrder') || '[]');
+    return Array.isArray(value) ? value.map((id) => String(id)).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWorkspaceOrder() {
+  localStorage.setItem('hermesWork.workspaceOrder', JSON.stringify(state.workspaceOrder));
+}
+
 function readTaskWorkspaceOverrides() {
   try {
     const value = JSON.parse(localStorage.getItem('hermesWork.taskWorkspaceOverrides') || '{}');
@@ -511,6 +567,13 @@ function restoreMessageScroll(scrollTop = 0) {
   if (list) list.scrollTop = Math.min(scrollTop, list.scrollHeight);
 }
 
+function restoreMessageTopAnchor(previousScrollTop = 0, previousScrollHeight = 0) {
+  const list = document.getElementById('messageList');
+  if (!list) return;
+  const addedHeight = Math.max(0, list.scrollHeight - Number(previousScrollHeight || 0));
+  list.scrollTop = Number(previousScrollTop || 0) + addedHeight;
+}
+
 function restoreSearchFocus(caret = state.query.length) {
   const search = document.getElementById('search');
   if (!search) return;
@@ -529,6 +592,23 @@ function firstVisibleTaskId() {
     status: state.status,
     query: state.query,
   })[0]?.id;
+}
+
+function currentMovableWorkspaceIds() {
+  return buildWorkspaceList(state.tasks, state.userWorkspaces, state.workspaceOrder)
+    .filter((workspace) => workspace.custom || workspace.auto)
+    .map((workspace) => workspace.id);
+}
+
+function shouldSkipRefreshForUserInput() {
+  const activeId = document.activeElement?.id;
+  return Boolean(
+    document.hidden
+      || state.searchComposing
+      || activeId === 'categoryName'
+      || activeId === 'categoryMove'
+      || activeId === 'statusMove'
+  );
 }
 
 function restoreBoardScroll(scrollTop = 0) {

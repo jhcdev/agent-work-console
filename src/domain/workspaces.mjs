@@ -17,15 +17,16 @@ const HANGUL_SLUG_WORDS = new Map([
   ['운영', 'ops'],
 ]);
 
-export function buildWorkspaceList(tasks = [], userWorkspaces = []) {
+export function buildWorkspaceList(tasks = [], userWorkspaces = [], workspaceOrder = []) {
   const normalizedCustom = normalizeUserWorkspaces(userWorkspaces);
   const knownIds = new Set([...DEFAULT_IDS, ...normalizedCustom.map((workspace) => workspace.id)]);
   const taskWorkspaces = [...new Set(tasks.map((task) => task.workspaceId).filter(Boolean))]
     .filter((id) => !knownIds.has(id) && id !== 'all')
     .sort((left, right) => left.localeCompare(right))
     .map((id) => ({ id, name: titleizeWorkspaceId(id), icon: '#', auto: true }));
+  const movableWorkspaces = orderMovableWorkspaces([...normalizedCustom, ...taskWorkspaces], workspaceOrder);
 
-  return [DEFAULT_WORKSPACES[0], ...normalizedCustom, ...DEFAULT_WORKSPACES.slice(1), ...taskWorkspaces];
+  return [DEFAULT_WORKSPACES[0], ...movableWorkspaces, ...DEFAULT_WORKSPACES.slice(1)];
 }
 
 export function normalizeUserWorkspaces(workspaces = []) {
@@ -86,6 +87,22 @@ export function reorderUserWorkspace(existing = [], draggedId, targetId) {
   return next.map((workspace, order) => ({ ...workspace, order }));
 }
 
+export function reorderWorkspaceOrder(existingOrder = [], draggedId, targetId) {
+  const dragged = String(draggedId || '');
+  const target = String(targetId || '');
+  if (!dragged || !target || dragged === target) return uniqueOrder(existingOrder);
+  const current = uniqueOrder(existingOrder);
+  if (!current.includes(dragged)) current.push(dragged);
+  if (!current.includes(target)) current.push(target);
+  const from = current.indexOf(dragged);
+  const to = current.indexOf(target);
+  if (from < 0 || to < 0 || from === to) return current;
+  const next = [...current];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
 export function deleteUserWorkspace(existing = [], workspaceId, tasks = []) {
   if (DEFAULT_IDS.has(workspaceId)) throw new Error('기본 카테고리는 삭제할 수 없습니다');
   const current = normalizeUserWorkspaces(existing);
@@ -103,6 +120,27 @@ function uniqueWorkspaceId(baseId, existing) {
   let suffix = 2;
   while (used.has(`${baseId}-${suffix}`)) suffix += 1;
   return `${baseId}-${suffix}`;
+}
+
+function orderMovableWorkspaces(workspaces, workspaceOrder = []) {
+  const byId = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
+  const ordered = uniqueOrder(workspaceOrder)
+    .map((id) => byId.get(id))
+    .filter(Boolean);
+  const orderedIds = new Set(ordered.map((workspace) => workspace.id));
+  return [...ordered, ...workspaces.filter((workspace) => !orderedIds.has(workspace.id))];
+}
+
+function uniqueOrder(order = []) {
+  const seen = new Set();
+  return order
+    .map((id) => String(id || '').trim())
+    .filter((id) => id && !DEFAULT_IDS.has(id))
+    .filter((id) => {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
 }
 
 function slugifyWorkspaceName(name) {

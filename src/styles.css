@@ -154,7 +154,9 @@ h1 { font-size: 34px; line-height: 1.05; margin: 0; }
 .detail-header h2 { font-size: 25px; line-height: 1.15; margin: 12px 0 8px; }
 .detail-controls { display: flex; flex-wrap: wrap; gap: 8px; }
 .category-move { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
-.category-move select { border: 1px solid var(--border); border-radius: 9px; background: rgba(255,255,255,.035); color: var(--text); padding: 7px 9px; }
+.category-move select { border: 1px solid var(--border); border-radius: 9px; background: #15171a; color: var(--text); padding: 7px 9px; color-scheme: dark; }
+.category-move select:focus { outline: 2px solid rgba(113,112,255,.75); outline-offset: 2px; }
+.category-move option { background: #15171a; color: var(--text); }
 .chat-panel {
   min-height: 0;
   flex: 1;
