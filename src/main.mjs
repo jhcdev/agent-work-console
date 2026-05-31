@@ -10,8 +10,8 @@ import { buildWorkspaceList, createUserWorkspace, deleteUserWorkspace, matchUser
 import { setStatusOverride } from './domain/statuses.mjs';
 
 const SESSION_REFRESH_INTERVAL_MS = 1000;
-const MESSAGE_LOAD_LIMIT = 150;
-const MESSAGE_LAZY_CHUNK_SIZE = 150;
+const MESSAGE_LOAD_LIMIT = 300;
+const MESSAGE_LAZY_CHUNK_SIZE = 300;
 const MESSAGE_MAX_CONTENT_CHARS = 3_000;
 let refreshInFlight = false;
 
@@ -317,14 +317,14 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
     state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
     const selectedChanged = state.selectedTaskId !== selectedBefore;
     const nextSelectedTask = state.tasks.find((task) => task.id === state.selectedTaskId);
-    const pollLatestMessages = Boolean(state.selectedTaskId && !document.hidden);
+    const messageWasNearBottom = isMessageListNearBottom();
+    const pollLatestMessages = Boolean(state.selectedTaskId && !document.hidden && messageWasNearBottom);
     const reloadMessages = pollLatestMessages || shouldReloadSelectedMessages({
       selectedChanged,
       loadMessages,
       previousTask: previousSelectedTask,
       nextTask: nextSelectedTask,
     });
-    const messageWasNearBottom = isMessageListNearBottom();
     render({
       restoreSearchFocus: searchCaret !== undefined,
       searchCaret,

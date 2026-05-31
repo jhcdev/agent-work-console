@@ -16,6 +16,7 @@ test('renders a lean session kanban and chat panel', () => {
 
   assert.match(html, /Hermes Work/);
   assert.match(html, /세션 칸반/);
+  assert.doesNotMatch(html, /세션을 고르고 그대로 대화합니다/);
   assert.match(html, /TSR annotation tool 수정/);
   assert.match(html, /sessionChatForm/);
   assert.match(html, /새 세션/);

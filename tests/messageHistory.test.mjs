@@ -10,7 +10,7 @@ test('grows message fetch limit in lazy-loading chunks until all history is load
 
 test('lazy-loads older messages only near the top while more history exists', () => {
   assert.equal(shouldLazyLoadOlderMessages({ scrollTop: 12, loadedCount: 150, totalCount: 430, loading: false }), true);
-  assert.equal(shouldLazyLoadOlderMessages({ scrollTop: 90, loadedCount: 150, totalCount: 430, loading: false }), false);
+  assert.equal(shouldLazyLoadOlderMessages({ scrollTop: 24, loadedCount: 150, totalCount: 430, loading: false }), false);
   assert.equal(shouldLazyLoadOlderMessages({ scrollTop: 0, loadedCount: 430, totalCount: 430, loading: false }), false);
   assert.equal(shouldLazyLoadOlderMessages({ scrollTop: 0, loadedCount: 150, totalCount: 430, loading: true }), false);
 });

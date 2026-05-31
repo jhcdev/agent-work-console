@@ -28,7 +28,7 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
 
     <main class="board">
       <header class="topbar">
-        <div><p class="eyebrow">세션 칸반</p><h1>세션을 고르고 그대로 대화합니다</h1></div>
+        <div><p class="eyebrow">세션 칸반</p></div>
         <div class="topbar-actions"><button class="ghost mobile-only" id="closeSessionList" aria-label="세션 목록 접기">채팅으로 돌아가기</button><button class="primary" id="newSession">새 세션</button><button class="ghost" id="refreshTasks">새로고침</button></div>
       </header>
       <section class="stats">

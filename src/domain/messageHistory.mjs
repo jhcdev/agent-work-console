@@ -7,7 +7,7 @@ export function nextLazyMessageLimit({ loadedCount = 0, totalCount = 0, currentL
   return Math.min(total, Math.max(limit + chunk, loaded + chunk));
 }
 
-export function shouldLazyLoadOlderMessages({ scrollTop = 0, loadedCount = 0, totalCount = 0, loading = false, threshold = 48 } = {}) {
+export function shouldLazyLoadOlderMessages({ scrollTop = 0, loadedCount = 0, totalCount = 0, loading = false, threshold = 12 } = {}) {
   if (loading) return false;
   const total = Math.max(0, Number(totalCount) || 0);
   const loaded = Math.max(0, Number(loadedCount) || 0);
