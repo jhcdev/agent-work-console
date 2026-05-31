@@ -6,6 +6,7 @@ import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs'
 import { filterTasks } from './domain/taskUtils.mjs';
 import { shouldReloadSelectedMessages } from './domain/sessionRefresh.mjs';
 import { createUserWorkspace, deleteUserWorkspace, moveUserWorkspace, normalizeUserWorkspaces } from './domain/workspaces.mjs';
+import { setStatusOverride } from './domain/statuses.mjs';
 
 const SESSION_REFRESH_INTERVAL_MS = 1000;
 const MESSAGE_LOAD_LIMIT = 150;
@@ -19,6 +20,7 @@ const state = {
   status: 'all',
   userWorkspaces: readUserWorkspaces(),
   taskWorkspaceOverrides: readTaskWorkspaceOverrides(),
+  taskStatusOverrides: readTaskStatusOverrides(),
   categoryDraft: '',
   query: '',
   connection: { baseUrl: '/hermes', sessionKey: 'web:jihun:hermes-work', useMockFallback: true },
@@ -139,6 +141,7 @@ function bind() {
     render();
   });
   document.getElementById('categoryMove')?.addEventListener('change', moveSelectedTaskToCategory);
+  document.getElementById('statusMove')?.addEventListener('change', moveSelectedTaskToStatus);
 }
 
 function bindGlobalRefreshControls() {
@@ -168,6 +171,23 @@ function moveSelectedTaskToCategory(event) {
   state.tasks = state.tasks.map((task) => task.id === taskId ? { ...task, workspaceId } : task);
   state.workspaceId = workspaceId;
   saveTaskWorkspaceOverrides();
+  render({ restoreBoardScroll: true, boardScrollTop: getBoardScrollTop(), restoreMessageScroll: true, messageScrollTop: getMessageScrollTop() });
+}
+
+async function moveSelectedTaskToStatus(event) {
+  const taskId = event.currentTarget.dataset.taskStatus;
+  const status = event.currentTarget.value;
+  if (!taskId) return;
+  state.taskStatusOverrides = setStatusOverride(state.taskStatusOverrides, taskId, status);
+  saveTaskStatusOverrides();
+  const override = state.taskStatusOverrides[taskId];
+  if (!override) {
+    state.status = 'all';
+    await refreshTasks({ force: true });
+    return;
+  }
+  state.tasks = state.tasks.map((task) => task.id === taskId ? { ...task, status: override } : task);
+  state.status = override;
   render({ restoreBoardScroll: true, boardScrollTop: getBoardScrollTop(), restoreMessageScroll: true, messageScrollTop: getMessageScrollTop() });
 }
 
@@ -238,7 +258,7 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
   const boardScrollTop = getBoardScrollTop();
   const messageScrollTop = getMessageScrollTop();
   try {
-    const nextTasks = (await client().listTasks({ maxPages: force || loadMessages ? 25 : 1 })).map(applyWorkspaceOverride);
+    const nextTasks = (await client().listTasks({ maxPages: force || loadMessages ? 25 : 1 })).map(applyTaskOverrides);
     state.tasks = force || loadMessages ? nextTasks : mergeTasksById(state.tasks, nextTasks);
     state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
     const selectedChanged = state.selectedTaskId !== selectedBefore;
@@ -275,7 +295,7 @@ async function createNewSession() {
   state.chatState = { ...state.chatState, loading: true, error: '' };
   render();
   try {
-    const task = applyWorkspaceOverride(await client().createSession());
+    const task = applyTaskOverrides(await client().createSession());
     state.tasks = [task, ...state.tasks.filter((item) => item.id !== task.id)];
     state.selectedTaskId = task.id;
     state.workspaceId = 'all';
@@ -386,9 +406,14 @@ function prunePersistedLocalMessages(sessionId, fetchedMessages) {
   ));
 }
 
-function applyWorkspaceOverride(task) {
+function applyTaskOverrides(task) {
   const override = state.taskWorkspaceOverrides[task.id];
-  return override ? { ...task, workspaceId: override } : task;
+  const statusOverride = state.taskStatusOverrides[task.id];
+  return {
+    ...task,
+    ...(override ? { workspaceId: override } : {}),
+    ...(statusOverride ? { status: statusOverride } : {}),
+  };
 }
 
 function mergeTasksById(currentTasks, refreshedTasks) {
@@ -420,6 +445,19 @@ function readTaskWorkspaceOverrides() {
 
 function saveTaskWorkspaceOverrides() {
   localStorage.setItem('hermesWork.taskWorkspaceOverrides', JSON.stringify(state.taskWorkspaceOverrides));
+}
+
+function readTaskStatusOverrides() {
+  try {
+    const value = JSON.parse(localStorage.getItem('hermesWork.taskStatusOverrides') || '{}');
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveTaskStatusOverrides() {
+  localStorage.setItem('hermesWork.taskStatusOverrides', JSON.stringify(state.taskStatusOverrides));
 }
 
 function getMessageScrollTop() {

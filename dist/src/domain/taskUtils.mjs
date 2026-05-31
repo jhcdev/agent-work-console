@@ -1,28 +1,24 @@
-const STATUSES = ['running', 'waiting_approval', 'failed', 'done'];
+import { countByStatus as countNormalizedStatus, normalizeStatus } from './statuses.mjs';
 
 export function countByStatus(tasks) {
-  const counts = Object.fromEntries(STATUSES.map((status) => [status, 0]));
-  for (const task of tasks) {
-    if (task.status in counts) counts[task.status] += 1;
-  }
-  return counts;
+  return countNormalizedStatus(tasks);
 }
 
 export function filterTasks(tasks, { workspaceId = 'all', status = 'all', query = '' } = {}) {
   const q = query.trim().toLowerCase();
   return tasks
     .filter((task) => workspaceId === 'all' || task.workspaceId === workspaceId)
-    .filter((task) => status === 'all' || task.status === status)
+    .filter((task) => status === 'all' || normalizeStatus(task.status) === status)
     .filter((task) => !q || `${task.title} ${task.summary} ${task.owner}`.toLowerCase().includes(q))
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export function statusLabel(status) {
-  return ({ running: '진행중', waiting_approval: '승인 대기', failed: '실패', done: '완료' })[status] ?? status;
+  return ({ running: '진행중', waiting_approval: '승인 대기', failed: '실패', done: '완료' })[normalizeStatus(status)] ?? status;
 }
 
 export function statusTone(status) {
-  return ({ running: 'blue', waiting_approval: 'amber', failed: 'red', done: 'green' })[status] ?? 'gray';
+  return ({ running: 'blue', waiting_approval: 'amber', failed: 'red', done: 'green' })[normalizeStatus(status)] ?? 'gray';
 }
 
 export function formatRelativeTime(iso) {

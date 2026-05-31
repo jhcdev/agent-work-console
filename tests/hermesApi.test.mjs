@@ -67,6 +67,9 @@ test('maps useful Hermes sessions including active gateway rows to newest-first 
         { id: 'active-discord', source: 'discord', title: '게이트웨이 실행 세션', message_count: 0, preview: '', api_call_count: 7, tool_call_count: 2, last_active: 1780000005 },
         { id: 'chat-session', source: 'discord', title: '실제 작업 세션', message_count: 4, preview: '작업 이어서', updated_at: 1780000003 },
         { id: 'new-api-session', source: 'api_server', title: '새 API 세션', message_count: 0, updated_at: 1780000004 },
+        { id: 'failed-session', source: 'discord', title: '실패 세션', message_count: 1, status: 'error', updated_at: 1780000006 },
+        { id: 'waiting-session', source: 'discord', title: '승인 세션', message_count: 1, pending_approval: true, updated_at: 1780000007 },
+        { id: 'done-session', source: 'discord', title: '완료 세션', message_count: 1, ended_at: 1780000008 },
       ],
     }), { status: 200 });
   };
@@ -76,11 +79,13 @@ test('maps useful Hermes sessions including active gateway rows to newest-first 
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0][0], '/hermes/api/sessions?limit=200&offset=0');
-  assert.deepEqual(tasks.map((task) => task.id), ['active-discord', 'new-api-session', 'chat-session']);
-  assert.equal(tasks[0].messageCount, 0);
-  assert.equal(tasks[0].updatedAt, '2026-05-28T20:26:45.000Z');
-  assert.equal(tasks[1].messageCount, 0);
-  assert.equal(tasks[2].messageCount, 4);
+  assert.deepEqual(tasks.map((task) => task.id).slice(0, 3), ['done-session', 'waiting-session', 'failed-session']);
+  assert.equal(tasks.find((task) => task.id === 'failed-session').status, 'failed');
+  assert.equal(tasks.find((task) => task.id === 'waiting-session').status, 'waiting_approval');
+  assert.equal(tasks.find((task) => task.id === 'done-session').status, 'done');
+  assert.equal(tasks.find((task) => task.id === 'active-discord').messageCount, 0);
+  assert.equal(tasks.find((task) => task.id === 'new-api-session').messageCount, 0);
+  assert.equal(tasks.find((task) => task.id === 'chat-session').messageCount, 4);
 });
 
 test('classifies live Hermes sessions into workspace categories from title and summary', async () => {

@@ -7,6 +7,7 @@ test('renders a lean session kanban and chat panel', () => {
   const html = createAppMarkup({
     tasks: mockTasks,
     selectedTaskId: 'task-tsr-annotation',
+    userWorkspaces: [{ id: 'custom-review', name: '리뷰', icon: '•', custom: true }],
     sessionMessages: [
       { role: 'user', text: '확인해줘', at: new Date().toISOString() },
       { role: 'assistant', text: '확인했습니다', at: new Date().toISOString() },
@@ -29,10 +30,18 @@ test('renders a lean session kanban and chat panel', () => {
   assert.match(html, /채팅으로 돌아가기/);
   assert.match(html, /toggleChatFocus/);
   assert.match(html, /채팅창 확장/);
+  assert.match(html, /compact-workspaces/);
   assert.match(html, /categoryName/);
   assert.match(html, /카테고리 추가/);
+  assert.doesNotMatch(html, /세션에서 감지된 미분류/);
   assert.match(html, /categoryMove/);
   assert.match(html, /카테고리 이동/);
+  assert.match(html, /statusMove/);
+  assert.match(html, /상태 변경/);
+  assert.match(html, /진행중/);
+  assert.match(html, /승인 대기/);
+  assert.match(html, /실패/);
+  assert.match(html, /완료/);
   assert.match(html, /자동/);
   assert.match(html, /삭제/);
   assert.match(html, /확인했습니다/);

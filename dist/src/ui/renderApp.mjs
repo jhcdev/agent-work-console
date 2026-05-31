@@ -1,4 +1,5 @@
 import { countByStatus, filterTasks, formatRelativeTime, statusLabel, statusTone } from '../domain/taskUtils.mjs';
+import { STATUS_IDS } from '../domain/statuses.mjs';
 import { buildWorkspaceList } from '../domain/workspaces.mjs';
 
 function esc(value) {
@@ -16,14 +17,13 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
   return `
     <aside class="sidebar">
       <div class="brand"><div class="logo">▣</div><div><strong>Hermes Work</strong><span>Hermes work control</span></div></div>
-      <nav class="workspace-list" aria-label="워크스페이스">
-        ${workspaces.map((w) => workspaceButton(w, workspaceId)).join('')}
-      </nav>
       <form id="categoryForm" class="category-form">
         <label for="categoryName">카테고리 추가</label>
         <div class="category-input-row"><input id="categoryName" name="categoryName" placeholder="새 카테고리 이름" autocomplete="off" value="${esc(categoryDraft)}"/><button class="ghost" type="submit">추가</button></div>
-        <p>세션에서 감지된 미분류 workspace는 <b>자동</b> 카테고리로 표시됩니다. 사용자 카테고리는 정렬/삭제 가능합니다.</p>
       </form>
+      <nav class="workspace-list compact-workspaces" aria-label="워크스페이스">
+        ${workspaces.map((w) => workspaceButton(w, workspaceId)).join('')}
+      </nav>
     </aside>
 
     <main class="board">
@@ -73,8 +73,9 @@ function sessionChat(task, messages, chatState, chatFocusMode, workspaces) {
   const focusLabel = chatFocusMode ? '채팅창 축소' : '채팅창 확장';
   const movableWorkspaces = workspaces.filter((workspace) => workspace.id !== 'all');
   const categorySelect = `<label class="category-move">카테고리 이동<select id="categoryMove" data-task-category="${esc(task.id)}">${movableWorkspaces.map((workspace) => `<option value="${esc(workspace.id)}" ${task.workspaceId === workspace.id ? 'selected' : ''}>${esc(workspace.name)}</option>`).join('')}</select></label>`;
+  const statusSelect = `<label class="category-move status-move">상태 변경<select id="statusMove" data-task-status="${esc(task.id)}"><option value="auto">자동</option>${STATUS_IDS.map((status) => `<option value="${esc(status)}" ${task.status === status ? 'selected' : ''}>${statusLabel(status)}</option>`).join('')}</select></label>`;
   return `<div class="mobile-chat-bar"><button id="toggleSessionList" class="ghost" type="button" aria-label="세션 목록 펼치기">☰ 세션 목록</button><span>${esc(task.title)}</span></div>
-  <div class="detail-header"><div class="detail-title-row"><div><span class="status ${statusTone(task.status)}">${statusLabel(task.status)}</span><h2>${esc(task.title)}</h2></div><button id="toggleChatFocus" class="ghost" type="button" aria-label="채팅창 전체화면 전환">${focusLabel}</button></div><p>${esc(task.summary)}</p>${categorySelect}</div>
+  <div class="detail-header"><div class="detail-title-row"><div><span class="status ${statusTone(task.status)}">${statusLabel(task.status)}</span><h2>${esc(task.title)}</h2></div><button id="toggleChatFocus" class="ghost" type="button" aria-label="채팅창 전체화면 전환">${focusLabel}</button></div><p>${esc(task.summary)}</p><div class="detail-controls">${categorySelect}${statusSelect}</div></div>
   <section class="chat-panel">
     <div class="chat-head"><div><div class="section-title">대화내역</div>${historyNotice(chatState)}</div>${chatState.loading ? '<span class="sync-pill">불러오는 중</span>' : ''}</div>
     ${chatState.error ? `<p class="error-text">${esc(chatState.error)}</p>` : ''}

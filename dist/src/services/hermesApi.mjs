@@ -1,4 +1,5 @@
 import { mockTasks } from '../mocks/mockData.mjs';
+import { inferTaskStatus } from '../domain/statuses.mjs';
 
 export class HermesApiClient {
   constructor(config, fetcher = (...args) => globalThis.fetch(...args)) {
@@ -104,7 +105,7 @@ function sessionToTask(session) {
   const messageCount = session.message_count ?? session.messages?.length ?? 0;
   const source = String(session.source || '').trim();
   return {
-    id: String(id), workspaceId: session.workspaceId || inferWorkspaceId(session), title, status: session.status || (session.ended_at ? 'done' : 'running'), priority: 'medium',
+    id: String(id), workspaceId: session.workspaceId || inferWorkspaceId(session), title, status: inferTaskStatus(session), priority: 'medium',
     updatedAt: timestampToIso(session.updated_at || session.updatedAt || session.last_active || session.ended_at || session.started_at) || new Date().toISOString(), owner: session.user || source || 'Hermes',
     summary: session.summary || session.preview || defaultSessionSummary({ messageCount, source, session }),
     messages: [], logs: [], approvals: [], artifacts: [], messageCount,
