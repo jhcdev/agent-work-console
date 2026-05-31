@@ -15,6 +15,7 @@ const state = {
   query: '',
   connection: { baseUrl: '/hermes', sessionKey: 'web:jihun:hermes-work', useMockFallback: true },
   sessionMessages: [],
+  pendingLocalMessages: [],
   chatState: { loading: false, sending: false, error: '' },
   detailPanelWidth: sanitizeDetailPanelWidth(localStorage.getItem('hermesWork.detailPanelWidth') || localStorage.getItem('agentConsole.detailPanelWidth')),
   mobileSessionListOpen: false,
@@ -35,11 +36,19 @@ function render(options = {}) {
   root.style.setProperty('--detail-width', `${state.detailPanelWidth}px`);
   root.classList.toggle('session-list-open', state.mobileSessionListOpen);
   root.classList.toggle('chat-focus-mode', state.chatFocusMode);
-  root.innerHTML = createAppMarkup({ ...state, connection: mergedConnectionConfig() });
+  root.innerHTML = createAppMarkup({
+    ...state,
+    sessionMessages: visibleSessionMessages(),
+    connection: mergedConnectionConfig(),
+  });
   bind();
   if (options.restoreSearchFocus) restoreSearchFocus(options.searchCaret);
   if (options.restoreBoardScroll) restoreBoardScroll(options.boardScrollTop);
-  scrollMessagesToBottom();
+  if (options.restoreMessageScroll) {
+    restoreMessageScroll(options.messageScrollTop);
+  } else if (options.scrollMessagesToBottom !== false) {
+    scrollMessagesToBottom();
+  }
 }
 
 function bind() {
@@ -158,16 +167,24 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
   const selectedBefore = state.selectedTaskId;
   const searchCaret = document.activeElement?.id === 'search' ? document.getElementById('search')?.selectionStart : undefined;
   const boardScrollTop = getBoardScrollTop();
+  const messageScrollTop = getMessageScrollTop();
   try {
     const nextTasks = await client().listTasks();
     state.tasks = nextTasks;
     state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
     const selectedChanged = state.selectedTaskId !== selectedBefore;
-    render({ restoreSearchFocus: searchCaret !== undefined, searchCaret, restoreBoardScroll: true, boardScrollTop });
+    render({
+      restoreSearchFocus: searchCaret !== undefined,
+      searchCaret,
+      restoreBoardScroll: true,
+      boardScrollTop,
+      restoreMessageScroll: !selectedChanged,
+      messageScrollTop,
+    });
     if (state.selectedTaskId && (loadMessages || selectedChanged)) {
       await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
     } else if (state.selectedTaskId) {
-      await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop, silent: true });
+      await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop, restoreMessageScroll: true, messageScrollTop, silent: true });
     }
   } finally {
     refreshInFlight = false;
@@ -185,6 +202,7 @@ async function createNewSession() {
     state.status = 'all';
     state.query = '';
     state.sessionMessages = [];
+    state.pendingLocalMessages = state.pendingLocalMessages.filter((message) => message.sessionId !== task.id);
     state.mobileSessionListOpen = false;
     state.chatState = { ...state.chatState, loading: false, error: '' };
     render();
@@ -201,7 +219,9 @@ async function loadSelectedMessages(options = {}) {
     render(options);
   }
   try {
-    state.sessionMessages = await client().listMessages(state.selectedTaskId);
+    const fetchedMessages = await client().listMessages(state.selectedTaskId);
+    state.sessionMessages = fetchedMessages;
+    prunePersistedLocalMessages(state.selectedTaskId, fetchedMessages);
     state.chatState = { ...state.chatState, loading: false, error: '' };
   } catch (error) {
     const fallback = state.tasks.find((task) => task.id === state.selectedTaskId)?.messages || [];
@@ -220,10 +240,22 @@ async function sendChatPrompt(event) {
   if (!message || !sessionId) return;
 
   state.chatState = { ...state.chatState, sending: true, error: '' };
-  state.sessionMessages = [...state.sessionMessages, { role: 'user', text: message, at: new Date().toISOString() }];
+  const pendingMessage = { sessionId, role: 'user', text: message, at: new Date().toISOString(), pending: true };
+  state.pendingLocalMessages = [...state.pendingLocalMessages, pendingMessage];
   render();
   try {
-    await client().sendChat(sessionId, message);
+    const response = await client().sendChat(sessionId, message);
+    const responseSessionId = response?.session_id || sessionId;
+    if (responseSessionId !== state.selectedTaskId) {
+      const previousTask = state.tasks.find((task) => task.id === sessionId);
+      if (previousTask && !state.tasks.some((task) => task.id === responseSessionId)) {
+        state.tasks = [{ ...previousTask, id: responseSessionId }, ...state.tasks.filter((task) => task.id !== sessionId)];
+      }
+      state.selectedTaskId = responseSessionId;
+      state.pendingLocalMessages = state.pendingLocalMessages.map((item) => (
+        item === pendingMessage ? { ...item, sessionId: responseSessionId } : item
+      ));
+    }
     state.chatState = { ...state.chatState, sending: false };
     await loadSelectedMessages();
   } catch (error) {
@@ -235,6 +267,42 @@ async function sendChatPrompt(event) {
 function scrollMessagesToBottom() {
   const list = document.getElementById('messageList');
   if (list) list.scrollTop = list.scrollHeight;
+}
+
+function visibleSessionMessages() {
+  const selectedId = state.selectedTaskId;
+  if (!selectedId) return state.sessionMessages;
+  const pending = state.pendingLocalMessages.filter((message) => message.sessionId === selectedId);
+  if (!pending.length) return state.sessionMessages;
+  const existingUserTexts = new Set(
+    state.sessionMessages
+      .filter((message) => message.role === 'user')
+      .map((message) => String(message.text || message.content || '').trim())
+      .filter(Boolean),
+  );
+  const missingPending = pending.filter((message) => !existingUserTexts.has(String(message.text || '').trim()));
+  return [...state.sessionMessages, ...missingPending];
+}
+
+function prunePersistedLocalMessages(sessionId, fetchedMessages) {
+  const fetchedUserTexts = new Set(
+    fetchedMessages
+      .filter((message) => message.role === 'user')
+      .map((message) => String(message.text || message.content || '').trim())
+      .filter(Boolean),
+  );
+  state.pendingLocalMessages = state.pendingLocalMessages.filter((message) => (
+    message.sessionId !== sessionId || !fetchedUserTexts.has(String(message.text || '').trim())
+  ));
+}
+
+function getMessageScrollTop() {
+  return document.getElementById('messageList')?.scrollTop ?? 0;
+}
+
+function restoreMessageScroll(scrollTop = 0) {
+  const list = document.getElementById('messageList');
+  if (list) list.scrollTop = Math.min(scrollTop, list.scrollHeight);
 }
 
 function restoreSearchFocus(caret = state.query.length) {
