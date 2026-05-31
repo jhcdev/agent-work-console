@@ -5,7 +5,7 @@ import { detailWidthFromPointer, sanitizeDetailPanelWidth } from './ui/panelResi
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 import { filterTasks } from './domain/taskUtils.mjs';
 import { shouldReloadSelectedMessages } from './domain/sessionRefresh.mjs';
-import { createUserWorkspace, deleteUserWorkspace, matchUserWorkspaceForTask, moveUserWorkspace, normalizeUserWorkspaces } from './domain/workspaces.mjs';
+import { createUserWorkspace, deleteUserWorkspace, matchUserWorkspaceForTask, reorderUserWorkspace, normalizeUserWorkspaces } from './domain/workspaces.mjs';
 import { setStatusOverride } from './domain/statuses.mjs';
 
 const SESSION_REFRESH_INTERVAL_MS = 1000;
@@ -31,6 +31,7 @@ const state = {
   mobileSessionListOpen: false,
   chatFocusMode: (localStorage.getItem('hermesWork.chatFocusMode') || localStorage.getItem('agentConsole.chatFocusMode')) === 'true',
   searchComposing: false,
+  draggedWorkspaceId: '',
 };
 const root = document.getElementById('root');
 
@@ -70,12 +71,13 @@ function bind() {
     render({ restoreBoardScroll: true, boardScrollTop });
     if (state.selectedTaskId) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   }));
-  document.querySelectorAll('[data-workspace-move]').forEach((el) => el.addEventListener('click', (event) => {
-    event.stopPropagation();
-    state.userWorkspaces = moveUserWorkspace(state.userWorkspaces, el.dataset.workspaceMove, Number(el.dataset.direction));
-    saveUserWorkspaces();
-    render({ restoreBoardScroll: true, boardScrollTop: getBoardScrollTop(), restoreMessageScroll: true, messageScrollTop: getMessageScrollTop() });
-  }));
+  document.querySelectorAll('[data-workspace-drag]').forEach((el) => {
+    el.addEventListener('dragstart', startWorkspaceDrag);
+    el.addEventListener('dragover', overWorkspaceDragTarget);
+    el.addEventListener('dragleave', leaveWorkspaceDragTarget);
+    el.addEventListener('drop', dropWorkspaceDragTarget);
+    el.addEventListener('dragend', endWorkspaceDrag);
+  });
   document.querySelectorAll('[data-workspace-delete]').forEach((el) => el.addEventListener('click', (event) => {
     event.stopPropagation();
     const deletedId = el.dataset.workspaceDelete;
@@ -142,6 +144,43 @@ function bind() {
   });
   document.getElementById('categoryMove')?.addEventListener('change', moveSelectedTaskToCategory);
   document.getElementById('statusMove')?.addEventListener('change', moveSelectedTaskToStatus);
+}
+
+function startWorkspaceDrag(event) {
+  state.draggedWorkspaceId = event.currentTarget.dataset.workspaceDrag || '';
+  event.currentTarget.classList.add('dragging');
+  event.dataTransfer?.setData('text/plain', state.draggedWorkspaceId);
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+}
+
+function overWorkspaceDragTarget(event) {
+  if (!state.draggedWorkspaceId) return;
+  const targetId = event.currentTarget.dataset.workspaceDrop;
+  if (!targetId || targetId === state.draggedWorkspaceId) return;
+  event.preventDefault();
+  event.currentTarget.classList.add('drop-target');
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+}
+
+function leaveWorkspaceDragTarget(event) {
+  event.currentTarget.classList.remove('drop-target');
+}
+
+function dropWorkspaceDragTarget(event) {
+  event.preventDefault();
+  const draggedId = state.draggedWorkspaceId || event.dataTransfer?.getData('text/plain');
+  const targetId = event.currentTarget.dataset.workspaceDrop;
+  document.querySelectorAll('.workspace-row.drop-target').forEach((el) => el.classList.remove('drop-target'));
+  if (!draggedId || !targetId || draggedId === targetId) return;
+  state.userWorkspaces = reorderUserWorkspace(state.userWorkspaces, draggedId, targetId);
+  saveUserWorkspaces();
+  render({ restoreBoardScroll: true, boardScrollTop: getBoardScrollTop(), restoreMessageScroll: true, messageScrollTop: getMessageScrollTop() });
+}
+
+function endWorkspaceDrag(event) {
+  state.draggedWorkspaceId = '';
+  event.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.workspace-row.drop-target').forEach((el) => el.classList.remove('drop-target'));
 }
 
 function bindGlobalRefreshControls() {

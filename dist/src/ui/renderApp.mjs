@@ -49,10 +49,13 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
 
 function workspaceButton(workspace, activeId) {
   const badge = workspace.auto ? '<small>자동</small>' : workspace.custom ? '<small>사용자</small>' : '';
-  const controls = workspace.custom
-    ? `<span class="workspace-controls"><button class="mini" data-workspace-move="${esc(workspace.id)}" data-direction="-1" type="button" aria-label="${esc(workspace.name)} 위로 정렬">↑</button><button class="mini" data-workspace-move="${esc(workspace.id)}" data-direction="1" type="button" aria-label="${esc(workspace.name)} 아래로 정렬">↓</button><button class="mini danger" data-workspace-delete="${esc(workspace.id)}" type="button" aria-label="${esc(workspace.name)} 삭제">삭제</button></span>`
+  const dragAttrs = workspace.custom
+    ? ` draggable="true" data-workspace-drag="${esc(workspace.id)}" data-workspace-drop="${esc(workspace.id)}"`
     : '';
-  return `<div class="workspace-row ${workspace.id === activeId ? 'active' : ''}">
+  const controls = workspace.custom
+    ? `<span class="workspace-controls"><span class="drag-handle" aria-label="${esc(workspace.name)} 드래그 정렬" title="드래그해서 정렬">⋮⋮</span><button class="mini danger" data-workspace-delete="${esc(workspace.id)}" type="button" aria-label="${esc(workspace.name)} 삭제">삭제</button></span>`
+    : '';
+  return `<div class="workspace-row ${workspace.id === activeId ? 'active' : ''}"${dragAttrs}>
     <button class="workspace ${workspace.id === activeId ? 'active' : ''}" data-workspace="${esc(workspace.id)}" type="button"><span>${esc(workspace.icon)}</span><strong>${esc(workspace.name)}</strong>${badge}</button>
     ${controls}
   </div>`;

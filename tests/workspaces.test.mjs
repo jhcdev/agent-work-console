@@ -6,6 +6,7 @@ import {
   deleteUserWorkspace,
   matchUserWorkspaceForTask,
   moveUserWorkspace,
+  reorderUserWorkspace,
 } from '../src/domain/workspaces.mjs';
 
 test('builds sidebar categories from defaults, custom categories, and task-derived workspaces', () => {
@@ -52,6 +53,18 @@ test('matches sessions into user categories by category keyword before defaults'
   assert.equal(matchUserWorkspaceForTask({ title: 'SVNET3 TSR 모델 디버깅', summary: 'annotation 개선' }, userWorkspaces), 'custom-svnet3');
   assert.equal(matchUserWorkspaceForTask({ title: '주간 정리', summary: '회의 메모 요약' }, userWorkspaces), 'custom-meeting');
   assert.equal(matchUserWorkspaceForTask({ title: 'ComfyUI workflow 수정', summary: '이미지 생성' }, userWorkspaces), undefined);
+});
+
+test('reorders custom categories by dragged and target category IDs', () => {
+  const initial = [
+    { id: 'custom-a', name: 'A', icon: '📁', order: 0, custom: true },
+    { id: 'custom-b', name: 'B', icon: '📁', order: 1, custom: true },
+    { id: 'custom-c', name: 'C', icon: '📁', order: 2, custom: true },
+  ];
+
+  assert.deepEqual(reorderUserWorkspace(initial, 'custom-c', 'custom-a').map((workspace) => workspace.id), ['custom-c', 'custom-a', 'custom-b']);
+  assert.deepEqual(reorderUserWorkspace(initial, 'custom-a', 'custom-c').map((workspace) => workspace.id), ['custom-b', 'custom-c', 'custom-a']);
+  assert.deepEqual(reorderUserWorkspace(initial, 'missing', 'custom-c').map((workspace) => workspace.id), ['custom-a', 'custom-b', 'custom-c']);
 });
 
 test('deletes only custom categories and reports reassigned tasks', () => {

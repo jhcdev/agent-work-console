@@ -75,6 +75,17 @@ export function moveUserWorkspace(existing = [], workspaceId, direction) {
   return next.map((workspace, order) => ({ ...workspace, order }));
 }
 
+export function reorderUserWorkspace(existing = [], draggedId, targetId) {
+  const current = normalizeUserWorkspaces(existing);
+  const from = current.findIndex((workspace) => workspace.id === draggedId);
+  const to = current.findIndex((workspace) => workspace.id === targetId);
+  if (from < 0 || to < 0 || from === to) return current;
+  const next = [...current];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next.map((workspace, order) => ({ ...workspace, order }));
+}
+
 export function deleteUserWorkspace(existing = [], workspaceId, tasks = []) {
   if (DEFAULT_IDS.has(workspaceId)) throw new Error('기본 카테고리는 삭제할 수 없습니다');
   const current = normalizeUserWorkspaces(existing);
