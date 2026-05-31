@@ -51,6 +51,14 @@ export class HermesApiClient {
     });
   }
 
+  async createSession({ title } = {}) {
+    const payload = await this.request('/api/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ title: title || defaultSessionTitle() }),
+    });
+    return sessionToTask(payload.session || payload);
+  }
+
   async listTasks() {
     try {
       const data = await this.listSessions();
@@ -66,7 +74,7 @@ export class HermesApiClient {
 function isUsefulSession(session) {
   const messageCount = session.message_count ?? session.messages?.length ?? 0;
   if (session.source === 'cron') return false;
-  return messageCount > 0;
+  return messageCount > 0 || session.source === 'api_server';
 }
 
 function sessionToTask(session) {
@@ -101,6 +109,12 @@ function timestampToIso(value) {
   if (typeof value === 'string') return value;
   if (typeof value === 'number') return new Date(value < 10_000_000_000 ? value * 1000 : value).toISOString();
   return undefined;
+}
+
+function defaultSessionTitle() {
+  const now = new Date();
+  const date = now.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return `새 세션 ${date}`;
 }
 
 export function readConnectionConfig() {

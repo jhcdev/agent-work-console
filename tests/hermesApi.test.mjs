@@ -45,6 +45,28 @@ test('maps only useful Hermes sessions to task cards', async () => {
   assert.equal(tasks[0].messageCount, 4);
 });
 
+test('creates a new Hermes session and maps the response to a task', async () => {
+  const calls = [];
+  const fetcher = async (url, init) => {
+    calls.push([url, init]);
+    return new Response(JSON.stringify({
+      object: 'hermes.session',
+      session: { id: 'api_123_new', source: 'api_server', title: '새 작업', message_count: 0, started_at: 1780000000 },
+    }), { status: 201 });
+  };
+  const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun' }, fetcher);
+
+  const task = await client.createSession({ title: '새 작업' });
+
+  assert.equal(calls[0][0], '/hermes/api/sessions');
+  assert.equal(calls[0][1].method, 'POST');
+  assert.equal(JSON.parse(calls[0][1].body).title, '새 작업');
+  assert.equal(calls[0][1].headers['X-Hermes-Session-Key'], 'web:jihun');
+  assert.equal(task.id, 'api_123_new');
+  assert.equal(task.title, '새 작업');
+  assert.equal(task.messageCount, 0);
+});
+
 test('normalizes persisted session messages for the chat panel', async () => {
   const fetcher = async () => new Response(JSON.stringify({
     object: 'list',

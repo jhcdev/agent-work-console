@@ -21,7 +21,7 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
     <main class="board">
       <header class="topbar">
         <div><p class="eyebrow">세션 칸반</p><h1>세션을 고르고 그대로 대화합니다</h1></div>
-        <button class="primary" id="refreshTasks">새로고침</button>
+        <div class="topbar-actions"><button class="primary" id="newSession">새 세션</button><button class="ghost" id="refreshTasks">새로고침</button></div>
       </header>
       <section class="stats">
         ${Object.entries(counts).map(([key, value]) => `<button class="stat ${status === key ? 'active' : ''}" data-status="${esc(key)}"><span class="dot ${statusTone(key)}"></span><strong>${value}</strong><small>${statusLabel(key)}</small></button>`).join('')}

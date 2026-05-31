@@ -49,6 +49,7 @@ function bind() {
   }));
   document.getElementById('search')?.addEventListener('input', (event) => { state.query = event.target.value; render(); });
   document.getElementById('refreshTasks')?.addEventListener('click', refreshTasks);
+  document.getElementById('newSession')?.addEventListener('click', createNewSession);
   document.getElementById('sessionChatForm')?.addEventListener('submit', sendChatPrompt);
 }
 
@@ -67,6 +68,25 @@ async function refreshTasks() {
   state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
   render();
   await loadSelectedMessages();
+}
+
+async function createNewSession() {
+  state.chatState = { ...state.chatState, loading: true, error: '' };
+  render();
+  try {
+    const task = await client().createSession();
+    state.tasks = [task, ...state.tasks.filter((item) => item.id !== task.id)];
+    state.selectedTaskId = task.id;
+    state.workspaceId = 'all';
+    state.status = 'all';
+    state.query = '';
+    state.sessionMessages = [];
+    state.chatState = { ...state.chatState, loading: false, error: '' };
+    render();
+  } catch (error) {
+    state.chatState = { ...state.chatState, loading: false, error: `새 세션을 만들지 못했습니다: ${error.message}` };
+    render();
+  }
 }
 
 async function loadSelectedMessages() {

@@ -61,6 +61,7 @@ button { cursor: pointer; }
 .primary { background: var(--accent); border-color: transparent; color: white; font-weight: 700; }
 .primary:disabled, textarea:disabled { opacity: .6; cursor: not-allowed; }
 .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .eyebrow, .section-title { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 10px; }
 h1 { font-size: 34px; line-height: 1.05; margin: 0; }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
