@@ -39,7 +39,7 @@ export const mockTasks = [
   },
   {
     id: 'task-agent-console', workspaceId: 'hermes', title: 'Agent Work Console MVP', status: 'done', priority: 'high', updatedAt: iso(60), owner: 'Jihun',
-    summary: '모바일/PC에서 AI agent task를 추적하는 PWA 콘솔 MVP입니다.',
+    summary: 'Windows/Android/iOS 설치형 앱까지 확장할 Agent Work Console의 Web/PWA MVP입니다.',
     messages: [{ role: 'user', text: '크로스플랫폼 Agent Work Console를 만들어줘', at: iso(120) }, { role: 'agent', text: 'MVP 계획과 구현을 완료했습니다.', at: iso(60) }],
     logs: [{ level: 'success', text: 'npm test and build passed', at: iso(60) }], approvals: [], artifacts: [{ name: 'dist/', kind: 'build' }]
   },
