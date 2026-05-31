@@ -189,6 +189,17 @@ h1 { font-size: 34px; line-height: 1.05; margin: 0; }
 .message.user { background: rgba(113,112,255,.13); border-color: rgba(113,112,255,.36); }
 .message.assistant { background: rgba(96,165,250,.09); border-color: rgba(96,165,250,.22); }
 .message.tool { background: rgba(255,255,255,.02); color: var(--muted); }
+.tool-message { display: flex; gap: 10px; align-items: flex-start; background: rgba(88,101,242,.08); border-color: rgba(88,101,242,.26); color: var(--soft); }
+.tool-message.success { background: rgba(16,185,129,.08); border-color: rgba(16,185,129,.24); }
+.tool-message.error { background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.26); }
+.tool-message.running { background: rgba(96,165,250,.08); border-color: rgba(96,165,250,.24); }
+.tool-icon { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; background: rgba(255,255,255,.08); color: var(--soft); font-size: 13px; }
+.tool-body { min-width: 0; flex: 1; display: grid; gap: 5px; }
+.tool-line { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--muted); font-size: 12px; }
+.tool-line b { color: var(--soft); }
+.tool-line code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c7d2fe; background: rgba(255,255,255,.06); border: 1px solid var(--border); border-radius: 999px; padding: 2px 7px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.tool-line time { margin-left: auto; white-space: nowrap; }
+.tool-body p { margin: 0; color: var(--soft); line-height: 1.45; overflow-wrap: anywhere; }
 .message-meta { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; }
 .message-meta b { color: var(--soft); }
 .message p { margin: 8px 0 0; color: var(--soft); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -70,7 +70,6 @@ function taskCard(task, selectedId) {
   return `<article class="task-card ${task.id === selectedId ? 'selected' : ''}" data-task="${esc(task.id)}">
     <div class="task-head"><span class="status ${statusTone(task.status)}">${statusLabel(task.status)}</span><span>${formatRelativeTime(task.updatedAt)}</span></div>
     <h2>${esc(task.title)}</h2>
-    <p>${esc(task.summary)}</p>
     <div class="task-meta"><span>${messageCount} messages</span><span>${esc(task.owner || 'Hermes')}</span></div>
   </article>`;
 }
@@ -82,12 +81,12 @@ function sessionChat(task, messages, chatState, chatFocusMode, workspaces) {
   const categorySelect = `<label class="category-move">카테고리 이동<select id="categoryMove" data-task-category="${esc(task.id)}">${movableWorkspaces.map((workspace) => `<option value="${esc(workspace.id)}" ${task.workspaceId === workspace.id ? 'selected' : ''}>${esc(workspace.name)}</option>`).join('')}</select></label>`;
   const statusSelect = `<label class="category-move status-move">상태 변경<select id="statusMove" data-task-status="${esc(task.id)}"><option value="auto">자동</option>${STATUS_IDS.map((status) => `<option value="${esc(status)}" ${task.status === status ? 'selected' : ''}>${statusLabel(status)}</option>`).join('')}</select></label>`;
   return `<div class="mobile-chat-bar"><button id="toggleSessionList" class="ghost" type="button" aria-label="세션 목록 펼치기">☰ 세션 목록</button><span>${esc(task.title)}</span></div>
-  <div class="detail-header"><div class="detail-title-row"><div><span class="status ${statusTone(task.status)}">${statusLabel(task.status)}</span><h2>${esc(task.title)}</h2></div><button id="toggleChatFocus" class="ghost" type="button" aria-label="채팅창 전체화면 전환">${focusLabel}</button></div><p>${esc(task.summary)}</p><div class="detail-controls">${categorySelect}${statusSelect}</div></div>
+  <div class="detail-header"><div class="detail-title-row"><div><span class="status ${statusTone(task.status)}">${statusLabel(task.status)}</span><h2>${esc(task.title)}</h2></div><button id="toggleChatFocus" class="ghost" type="button" aria-label="채팅창 전체화면 전환">${focusLabel}</button></div><div class="detail-controls">${categorySelect}${statusSelect}</div></div>
   <section class="chat-panel">
-    <div class="chat-head"><div><div class="section-title">대화내역</div>${historyNotice(chatState)}</div>${chatState.loading ? '<span class="sync-pill">불러오는 중</span>' : ''}</div>
+    <div class="chat-head"><div><div class="section-title">대화내역</div></div>${chatState.loading ? '<span class="sync-pill">불러오는 중</span>' : ''}</div>
     ${chatState.error ? `<p class="error-text">${esc(chatState.error)}</p>` : ''}
     <div class="message-list" id="messageList">
-      ${list.map(messageBubble).join('') || '<p class="muted">아직 이 세션에 표시할 대화가 없습니다. 아래에 프롬프트를 입력하면 이 세션에 이어서 남습니다.</p>'}
+      ${list.map(messageBubble).join('') || '<p class="muted">아직 표시할 대화가 없습니다.</p>'}
     </div>
     <form id="sessionChatForm" class="chat-form" data-session="${esc(task.id)}">
       <textarea id="chatInput" name="message" rows="3" placeholder="이 세션에 이어서 프롬프트 입력…" aria-label="세션 프롬프트 입력" ${chatState.sending ? 'disabled' : ''}></textarea>
@@ -100,6 +99,7 @@ function sessionChat(task, messages, chatState, chatFocusMode, workspaces) {
 }
 
 function messageBubble(message) {
+  if (message.toolName || message.role === 'tool') return toolMessageBubble(message);
   const role = message.role || 'message';
   const text = message.text || message.content || '';
   const omitted = Number(message.omittedChars || 0);
@@ -109,6 +109,16 @@ function messageBubble(message) {
   return `<article class="message ${esc(role)}">
     <div class="message-meta"><b>${roleLabel(role)}</b><time>${formatRelativeTime(message.at || message.timestamp)}</time></div>
     <p>${esc(text)}${truncated}</p>
+  </article>`;
+}
+
+function toolMessageBubble(message) {
+  const status = message.toolStatus || 'success';
+  const label = status === 'running' ? '도구 사용' : status === 'error' ? '도구 실패' : '도구 완료';
+  const text = message.text || label;
+  return `<article class="message tool-message ${esc(status)}">
+    <div class="tool-icon">⌘</div>
+    <div class="tool-body"><div class="tool-line"><b>${label}</b><code>${esc(message.toolName || 'tool')}</code><time>${formatRelativeTime(message.at || message.timestamp)}</time></div><p>${esc(text)}</p></div>
   </article>`;
 }
 

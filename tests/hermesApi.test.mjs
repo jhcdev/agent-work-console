@@ -154,9 +154,35 @@ test('normalizes persisted session messages for the chat panel', async () => {
   assert.match(calls?.[0]?.[0] || '', /max_content_chars=3000/);
   assert.equal(messages.totalCount, 3);
   assert.equal(messages[0].text, 'hello');
-  assert.equal(messages[1].text, 'tool call: read_file');
+  assert.equal(messages[1].text, '도구 사용');
+  assert.equal(messages[1].toolName, 'read_file');
+  assert.equal(messages[1].toolStatus, 'running');
   assert.equal(messages[2].text, 'tool output');
   assert.match(messages[0].at, /T/);
+});
+
+test('summarizes tool result JSON instead of exposing raw payload text', async () => {
+  const fetcher = async () => new Response(JSON.stringify({
+    object: 'list',
+    total_count: 2,
+    limit: 150,
+    data: [
+      { id: 1, role: 'assistant', content: '', tool_calls: [{ function: { name: 'read_file', arguments: '{"path":"README.md"}' } }], timestamp: 1780000000 },
+      { id: 2, role: 'tool', tool_name: 'read_file', content: '{"success":true,"content":"very long file content","total_lines":42}', timestamp: 1780000001 },
+    ],
+  }), { status: 200 });
+  const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun' }, fetcher);
+
+  const messages = await client.listMessages('session-1');
+
+  assert.equal(messages[0].toolName, 'read_file');
+  assert.equal(messages[0].toolStatus, 'running');
+  assert.equal(messages[0].text, '도구 사용');
+  assert.equal(messages[1].toolName, 'read_file');
+  assert.equal(messages[1].toolStatus, 'success');
+  assert.equal(messages[1].text, '성공 · 42 lines');
+  assert.doesNotMatch(messages[1].text, /very long file content/);
+  assert.doesNotMatch(messages[1].text, /"success"/);
 });
 
 test('posts chat prompts to a persisted Hermes session', async () => {

@@ -71,7 +71,7 @@ test('renders chat focus mode with a collapse action', () => {
 
 test('renders fast-history notice and truncated message marker', () => {
   const messages = [
-    { role: 'tool', text: '긴 도구 출력', truncated: true, omittedChars: 12345, at: new Date().toISOString() },
+    { role: 'assistant', text: '긴 도구 출력', truncated: true, omittedChars: 12345, at: new Date().toISOString() },
   ];
   const html = createAppMarkup({
     tasks: mockTasks,
@@ -80,7 +80,7 @@ test('renders fast-history notice and truncated message marker', () => {
     chatState: { totalCount: 1000, loadedCount: 300 },
   });
 
-  assert.match(html, /최근 300 \/ 전체 1,000개 메시지를 먼저 로딩/);
+  assert.doesNotMatch(html, /최근 300 \/ 전체 1,000개 메시지를 먼저 로딩/);
   assert.match(html, /긴 내용 12,345자를 접었습니다/);
 });
 
@@ -101,9 +101,29 @@ test('renders fast-history notice and truncation marker', () => {
     tasks: mockTasks,
     selectedTaskId: 'task-tsr-annotation',
     chatState: { totalCount: 1200, loadedCount: 300 },
-    sessionMessages: [{ role: 'tool', text: 'x'.repeat(10), truncated: true, omittedChars: 9000, at: new Date().toISOString() }],
+    sessionMessages: [{ role: 'assistant', text: 'x'.repeat(10), truncated: true, omittedChars: 9000, at: new Date().toISOString() }],
   });
 
-  assert.match(html, /최근 300 \/ 전체 1,200개 메시지를 먼저 로딩/);
+  assert.doesNotMatch(html, /최근 300 \/ 전체 1,200개 메시지를 먼저 로딩/);
   assert.match(html, /긴 내용 9,000자를 접었습니다/);
+});
+
+test('renders tool usage like a compact Discord activity row and hides descriptions', () => {
+  const html = createAppMarkup({
+    tasks: mockTasks,
+    selectedTaskId: 'task-tsr-annotation',
+    sessionMessages: [
+      { role: 'assistant', text: '도구 사용', toolName: 'read_file', toolStatus: 'running', at: new Date().toISOString() },
+      { role: 'tool', text: '성공 · 42 lines', toolName: 'read_file', toolStatus: 'success', at: new Date().toISOString() },
+    ],
+  });
+
+  assert.match(html, /tool-message/);
+  assert.match(html, /도구 사용/);
+  assert.match(html, /read_file/);
+  assert.match(html, /성공 · 42 lines/);
+  assert.doesNotMatch(html, /CSV prediction-first annotation flow/);
+  assert.doesNotMatch(html, /아래에 프롬프트를 입력/);
+  assert.doesNotMatch(html, /맨 위로 스크롤하면/);
+  assert.doesNotMatch(html, /\{"success"/);
 });

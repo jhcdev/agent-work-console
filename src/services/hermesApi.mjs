@@ -140,7 +140,10 @@ export function normalizeMessage(message) {
   const toolCallNames = Array.isArray(message.tool_calls)
     ? message.tool_calls.map((call) => call?.function?.name || call?.name).filter(Boolean)
     : [];
-  const rawText = String(message.content || message.text || (toolCallNames.length ? `tool call: ${toolCallNames.join(', ')}` : '') || '').trim();
+  const isToolResult = message.role === 'tool' || Boolean(message.tool_name);
+  const toolName = message.tool_name || toolCallNames.join(', ');
+  const toolSummary = summarizeToolMessage(message, toolCallNames);
+  const rawText = toolSummary.text || String(message.content || message.text || (toolCallNames.length ? '도구 사용' : '') || '').trim();
   const clientMax = 8_000;
   const truncated = Boolean(message.content_truncated || rawText.length > clientMax);
   const omittedChars = Number(message.content_omitted_chars || Math.max(0, rawText.length - clientMax) || 0);
@@ -153,10 +156,51 @@ export function normalizeMessage(message) {
     role: message.role || 'message',
     text,
     at: timestampToIso(message.timestamp || message.created_at || message.at) || new Date().toISOString(),
-    toolName: message.tool_name || toolCallNames.join(', '),
+    toolName,
+    toolStatus: toolSummary.status || (toolCallNames.length && !isToolResult ? 'running' : undefined),
     truncated,
     omittedChars,
   };
+}
+
+function summarizeToolMessage(message, toolCallNames = []) {
+  if (toolCallNames.length && !message.content && !message.text) return { text: '도구 사용', status: 'running' };
+  if (message.role !== 'tool' && !message.tool_name) return { text: '' };
+  const parsed = parseJsonObject(message.content || message.text);
+  if (!parsed) {
+    const plain = String(message.content || message.text || '').trim();
+    return { text: plain ? compactPlainToolText(plain) : '완료', status: 'success' };
+  }
+  if (parsed.error) return { text: `실패 · ${String(parsed.error).slice(0, 160)}`, status: 'error' };
+  if (parsed.success === false || Number(parsed.exit_code || 0) !== 0) {
+    const reason = parsed.stderr || parsed.output || parsed.message || `exit ${parsed.exit_code}`;
+    return { text: `실패 · ${String(reason).slice(0, 160)}`, status: 'error' };
+  }
+  const parts = [];
+  if (Number.isFinite(Number(parsed.total_lines))) parts.push(`${Number(parsed.total_lines).toLocaleString('ko-KR')} lines`);
+  if (Number.isFinite(Number(parsed.bytes_written))) parts.push(`${Number(parsed.bytes_written).toLocaleString('ko-KR')} bytes`);
+  if (Array.isArray(parsed.files_modified)) parts.push(`${parsed.files_modified.length.toLocaleString('ko-KR')} files`);
+  if (Array.isArray(parsed.matches)) parts.push(`${parsed.matches.length.toLocaleString('ko-KR')} matches`);
+  if (Array.isArray(parsed.files)) parts.push(`${parsed.files.length.toLocaleString('ko-KR')} files`);
+  if (parsed.exit_code === 0) parts.push('exit 0');
+  return { text: parts.length ? `성공 · ${parts.slice(0, 2).join(' · ')}` : '성공', status: 'success' };
+}
+
+function parseJsonObject(value) {
+  if (typeof value !== 'string') return undefined;
+  const text = value.trim();
+  if (!text.startsWith('{') && !text.startsWith('[')) return undefined;
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === 'object' ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function compactPlainToolText(text) {
+  const oneLine = text.replace(/\s+/g, ' ').trim();
+  return oneLine.length > 180 ? `${oneLine.slice(0, 180)}…` : oneLine;
 }
 
 function timestampToIso(value) {
