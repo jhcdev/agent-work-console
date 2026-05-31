@@ -85,14 +85,25 @@ button { cursor: pointer; }
   background: rgba(255,255,255,.04); color: var(--accent);
 }
 .workspace-list { display: grid; gap: 8px; }
-.workspace, .ghost, .primary, .stat {
+.workspace-row { display: grid; gap: 6px; }
+.workspace, .ghost, .primary, .stat, .mini {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: rgba(255,255,255,.03);
   color: var(--soft);
   padding: 10px 12px;
 }
-.workspace { display: flex; gap: 10px; text-align: left; }
+.workspace { display: flex; gap: 10px; text-align: left; align-items: center; width: 100%; }
+.workspace strong { flex: 1; font-weight: 600; }
+.workspace small { color: var(--muted); font-size: 11px; }
+.workspace-controls { display: flex; gap: 6px; padding-left: 4px; }
+.mini { padding: 4px 7px; border-radius: 8px; font-size: 11px; color: var(--muted); }
+.mini.danger { color: #fecaca; border-color: rgba(239,68,68,.25); }
+.category-form { display: grid; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.category-form label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.category-input-row { display: flex; gap: 6px; }
+.category-input-row input { min-width: 0; flex: 1; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.035); color: var(--text); padding: 9px 10px; }
+.category-form p { color: var(--muted); font-size: 11px; line-height: 1.35; margin: 0; }
 .workspace.active, .stat.active, .task-card.selected {
   border-color: rgba(113,112,255,.7);
   background: rgba(113,112,255,.12);
@@ -136,6 +147,8 @@ h1 { font-size: 34px; line-height: 1.05; margin: 0; }
 .detail-header { flex: 0 0 auto; margin-bottom: 14px; }
 .detail-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .detail-header h2 { font-size: 25px; line-height: 1.15; margin: 12px 0 8px; }
+.category-move { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.category-move select { border: 1px solid var(--border); border-radius: 9px; background: rgba(255,255,255,.035); color: var(--text); padding: 7px 9px; }
 .chat-panel {
   min-height: 0;
   flex: 1;

@@ -29,6 +29,12 @@ test('renders a lean session kanban and chat panel', () => {
   assert.match(html, /채팅으로 돌아가기/);
   assert.match(html, /toggleChatFocus/);
   assert.match(html, /채팅창 확장/);
+  assert.match(html, /categoryName/);
+  assert.match(html, /카테고리 추가/);
+  assert.match(html, /categoryMove/);
+  assert.match(html, /카테고리 이동/);
+  assert.match(html, /자동/);
+  assert.match(html, /삭제/);
   assert.match(html, /확인했습니다/);
   assert.doesNotMatch(html, /Hermes 연결/);
   assert.doesNotMatch(html, /<div class="section-title">실행 로그/);

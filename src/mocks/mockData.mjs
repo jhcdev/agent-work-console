@@ -1,10 +1,4 @@
-export const workspaces = [
-  { id: 'all', name: '전체 작업', icon: '⌘' },
-  { id: 'tsr', name: 'TSR', icon: '🚦' },
-  { id: 'comfyui', name: 'ComfyUI', icon: '🎛️' },
-  { id: 'hermes', name: 'Hermes 운영', icon: '⚙️' },
-  { id: 'research', name: 'Research', icon: '🔎' },
-];
+export { DEFAULT_WORKSPACES as workspaces } from '../domain/workspaces.mjs';
 
 const now = Date.now();
 const iso = (minutesAgo) => new Date(now - minutesAgo * 60_000).toISOString();

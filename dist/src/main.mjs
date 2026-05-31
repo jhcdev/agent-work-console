@@ -5,6 +5,7 @@ import { detailWidthFromPointer, sanitizeDetailPanelWidth } from './ui/panelResi
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 import { filterTasks } from './domain/taskUtils.mjs';
 import { shouldReloadSelectedMessages } from './domain/sessionRefresh.mjs';
+import { createUserWorkspace, deleteUserWorkspace, moveUserWorkspace, normalizeUserWorkspaces } from './domain/workspaces.mjs';
 
 const SESSION_REFRESH_INTERVAL_MS = 1000;
 const MESSAGE_LOAD_LIMIT = 150;
@@ -16,6 +17,9 @@ const state = {
   selectedTaskId: mockTasks[0].id,
   workspaceId: 'all',
   status: 'all',
+  userWorkspaces: readUserWorkspaces(),
+  taskWorkspaceOverrides: readTaskWorkspaceOverrides(),
+  categoryDraft: '',
   query: '',
   connection: { baseUrl: '/hermes', sessionKey: 'web:jihun:hermes-work', useMockFallback: true },
   sessionMessages: [],
@@ -64,6 +68,30 @@ function bind() {
     render({ restoreBoardScroll: true, boardScrollTop });
     if (state.selectedTaskId) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   }));
+  document.querySelectorAll('[data-workspace-move]').forEach((el) => el.addEventListener('click', (event) => {
+    event.stopPropagation();
+    state.userWorkspaces = moveUserWorkspace(state.userWorkspaces, el.dataset.workspaceMove, Number(el.dataset.direction));
+    saveUserWorkspaces();
+    render({ restoreBoardScroll: true, boardScrollTop: getBoardScrollTop(), restoreMessageScroll: true, messageScrollTop: getMessageScrollTop() });
+  }));
+  document.querySelectorAll('[data-workspace-delete]').forEach((el) => el.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const deletedId = el.dataset.workspaceDelete;
+    const result = deleteUserWorkspace(state.userWorkspaces, deletedId, state.tasks);
+    state.userWorkspaces = result.workspaces;
+    state.tasks = result.tasks;
+    Object.entries(state.taskWorkspaceOverrides).forEach(([taskId, workspaceId]) => {
+      if (workspaceId === deletedId) delete state.taskWorkspaceOverrides[taskId];
+    });
+    if (state.workspaceId === deletedId) state.workspaceId = 'all';
+    saveUserWorkspaces();
+    saveTaskWorkspaceOverrides();
+    render({ restoreBoardScroll: true, boardScrollTop: getBoardScrollTop() });
+  }));
+  document.getElementById('categoryForm')?.addEventListener('submit', createCategory);
+  document.getElementById('categoryName')?.addEventListener('input', (event) => {
+    state.categoryDraft = event.target.value;
+  });
   document.querySelectorAll('[data-status]').forEach((el) => el.addEventListener('click', async () => {
     const boardScrollTop = getBoardScrollTop();
     state.status = el.dataset.status;
@@ -110,6 +138,7 @@ function bind() {
     localStorage.setItem('hermesWork.chatFocusMode', String(state.chatFocusMode));
     render();
   });
+  document.getElementById('categoryMove')?.addEventListener('change', moveSelectedTaskToCategory);
 }
 
 function bindGlobalRefreshControls() {
@@ -129,6 +158,37 @@ function bindGlobalRefreshControls() {
     }, SESSION_REFRESH_INTERVAL_MS);
   };
   scheduleRealtimeRefresh();
+}
+
+function moveSelectedTaskToCategory(event) {
+  const taskId = event.currentTarget.dataset.taskCategory;
+  const workspaceId = event.currentTarget.value;
+  if (!taskId || !workspaceId) return;
+  state.taskWorkspaceOverrides[taskId] = workspaceId;
+  state.tasks = state.tasks.map((task) => task.id === taskId ? { ...task, workspaceId } : task);
+  state.workspaceId = workspaceId;
+  saveTaskWorkspaceOverrides();
+  render({ restoreBoardScroll: true, boardScrollTop: getBoardScrollTop(), restoreMessageScroll: true, messageScrollTop: getMessageScrollTop() });
+}
+
+function createCategory(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const input = form.querySelector('#categoryName');
+  try {
+    const result = createUserWorkspace(state.userWorkspaces, input?.value || state.categoryDraft || '');
+    state.userWorkspaces = result.workspaces;
+    state.workspaceId = result.workspace.id;
+    state.categoryDraft = '';
+    input.value = '';
+    saveUserWorkspaces();
+    state.selectedTaskId = firstVisibleTaskId();
+    state.sessionMessages = [];
+    render();
+  } catch (error) {
+    state.chatState = { ...state.chatState, error: error.message };
+    render();
+  }
 }
 
 function startDetailPanelResize(event) {
@@ -170,7 +230,7 @@ async function loadServerConfig() {
 
 async function refreshTasks({ force = false, loadMessages = false } = {}) {
   if (refreshInFlight) return;
-  if (!force && (document.hidden || state.searchComposing)) return;
+  if (!force && (document.hidden || state.searchComposing || document.activeElement?.id === 'categoryName')) return;
   refreshInFlight = true;
   const selectedBefore = state.selectedTaskId;
   const previousSelectedTask = state.tasks.find((task) => task.id === selectedBefore);
@@ -178,7 +238,7 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
   const boardScrollTop = getBoardScrollTop();
   const messageScrollTop = getMessageScrollTop();
   try {
-    const nextTasks = await client().listTasks({ maxPages: force || loadMessages ? 25 : 1 });
+    const nextTasks = (await client().listTasks({ maxPages: force || loadMessages ? 25 : 1 })).map(applyWorkspaceOverride);
     state.tasks = force || loadMessages ? nextTasks : mergeTasksById(state.tasks, nextTasks);
     state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
     const selectedChanged = state.selectedTaskId !== selectedBefore;
@@ -215,7 +275,7 @@ async function createNewSession() {
   state.chatState = { ...state.chatState, loading: true, error: '' };
   render();
   try {
-    const task = await client().createSession();
+    const task = applyWorkspaceOverride(await client().createSession());
     state.tasks = [task, ...state.tasks.filter((item) => item.id !== task.id)];
     state.selectedTaskId = task.id;
     state.workspaceId = 'all';
@@ -326,10 +386,40 @@ function prunePersistedLocalMessages(sessionId, fetchedMessages) {
   ));
 }
 
+function applyWorkspaceOverride(task) {
+  const override = state.taskWorkspaceOverrides[task.id];
+  return override ? { ...task, workspaceId: override } : task;
+}
+
 function mergeTasksById(currentTasks, refreshedTasks) {
   const byId = new Map(currentTasks.map((task) => [task.id, task]));
   refreshedTasks.forEach((task) => byId.set(task.id, task));
   return [...byId.values()].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+}
+
+function readUserWorkspaces() {
+  try {
+    return normalizeUserWorkspaces(JSON.parse(localStorage.getItem('hermesWork.userWorkspaces') || '[]'));
+  } catch {
+    return [];
+  }
+}
+
+function saveUserWorkspaces() {
+  localStorage.setItem('hermesWork.userWorkspaces', JSON.stringify(normalizeUserWorkspaces(state.userWorkspaces)));
+}
+
+function readTaskWorkspaceOverrides() {
+  try {
+    const value = JSON.parse(localStorage.getItem('hermesWork.taskWorkspaceOverrides') || '{}');
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveTaskWorkspaceOverrides() {
+  localStorage.setItem('hermesWork.taskWorkspaceOverrides', JSON.stringify(state.taskWorkspaceOverrides));
 }
 
 function getMessageScrollTop() {
