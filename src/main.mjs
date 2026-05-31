@@ -38,6 +38,7 @@ function render(options = {}) {
   root.innerHTML = createAppMarkup({ ...state, connection: mergedConnectionConfig() });
   bind();
   if (options.restoreSearchFocus) restoreSearchFocus(options.searchCaret);
+  if (options.restoreBoardScroll) restoreBoardScroll(options.boardScrollTop);
   scrollMessagesToBottom();
 }
 
@@ -55,11 +56,12 @@ function bind() {
     render();
   }));
   document.querySelectorAll('[data-task]').forEach((el) => el.addEventListener('click', async () => {
+    const boardScrollTop = getBoardScrollTop();
     state.selectedTaskId = el.dataset.task;
     state.sessionMessages = [];
     state.mobileSessionListOpen = false;
-    render();
-    await loadSelectedMessages();
+    render({ restoreBoardScroll: true, boardScrollTop });
+    await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   }));
   const searchInput = document.getElementById('search');
   searchInput?.addEventListener('compositionstart', () => { state.searchComposing = true; });
@@ -144,13 +146,14 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
   refreshInFlight = true;
   const selectedBefore = state.selectedTaskId;
   const searchCaret = document.activeElement?.id === 'search' ? document.getElementById('search')?.selectionStart : undefined;
+  const boardScrollTop = getBoardScrollTop();
   try {
     const nextTasks = await client().listTasks();
     state.tasks = nextTasks;
     state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
     const selectedChanged = state.selectedTaskId !== selectedBefore;
-    render({ restoreSearchFocus: searchCaret !== undefined, searchCaret });
-    if (loadMessages || selectedChanged) await loadSelectedMessages();
+    render({ restoreSearchFocus: searchCaret !== undefined, searchCaret, restoreBoardScroll: true, boardScrollTop });
+    if (loadMessages || selectedChanged) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   } finally {
     refreshInFlight = false;
   }
@@ -176,10 +179,10 @@ async function createNewSession() {
   }
 }
 
-async function loadSelectedMessages() {
+async function loadSelectedMessages(options = {}) {
   if (!state.selectedTaskId) return;
   state.chatState = { ...state.chatState, loading: true, error: '' };
-  render();
+  render(options);
   try {
     state.sessionMessages = await client().listMessages(state.selectedTaskId);
     state.chatState = { ...state.chatState, loading: false, error: '' };
@@ -188,7 +191,7 @@ async function loadSelectedMessages() {
     state.sessionMessages = fallback;
     state.chatState = { ...state.chatState, loading: false, error: `대화내역을 불러오지 못했습니다: ${error.message}` };
   }
-  render();
+  render(options);
 }
 
 async function sendChatPrompt(event) {
@@ -223,6 +226,15 @@ function restoreSearchFocus(caret = state.query.length) {
   search.focus();
   const nextCaret = Math.min(caret ?? state.query.length, search.value.length);
   search.setSelectionRange(nextCaret, nextCaret);
+}
+
+function getBoardScrollTop() {
+  return document.querySelector('.board')?.scrollTop ?? 0;
+}
+
+function restoreBoardScroll(scrollTop = 0) {
+  const board = document.querySelector('.board');
+  if (board) board.scrollTop = scrollTop;
 }
 
 await loadServerConfig();
