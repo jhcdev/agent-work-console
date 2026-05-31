@@ -129,9 +129,8 @@ function messageBubble(message) {
     ? `<span class="truncated-note">긴 내용 ${omitted.toLocaleString('ko-KR')}자를 접었습니다.</span>`
     : '';
   const isAgentRole = role === 'assistant' || role === 'agent';
-  const agentMark = isAgentRole ? '<span class="agent-mark">앱</span>' : '';
   return `<article class="message ${esc(role)} ${isAgentRole ? 'agent-message' : ''}">
-    <div class="message-meta"><b>${roleLabel(role)}${agentMark}</b><time>${formatRelativeTime(message.at || message.timestamp)}</time></div>
+    <div class="message-meta"><b>${roleLabel(role)}</b><time>${formatRelativeTime(message.at || message.timestamp)}</time></div>
     <p>${esc(text)}${truncated}</p>
   </article>`;
 }

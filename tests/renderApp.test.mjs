@@ -133,7 +133,8 @@ test('renders grouped tool activity rows with icons, argument previews, counts, 
   assert.match(html, /성공 · 42 lines/);
   assert.match(html, /Hermes Agent/);
   assert.match(html, /agent-message/);
-  assert.match(html, /<span class="agent-mark">앱<\/span>/);
+  assert.doesNotMatch(html, /agent-mark/);
+  assert.doesNotMatch(html, />앱<\/span>/);
   assert.doesNotMatch(html, /CSV prediction-first annotation flow/);
   assert.doesNotMatch(html, /아래에 프롬프트를 입력/);
   assert.doesNotMatch(html, /맨 위로 스크롤하면/);
