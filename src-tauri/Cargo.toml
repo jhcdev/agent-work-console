@@ -1,0 +1,20 @@
+[package]
+name = "agent-work-console-app"
+version = "0.1.0"
+description = "Agent Work Console desktop shell"
+authors = ["Jihun Chae"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "agent_work_console_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -60,7 +60,8 @@
 - Tauri v2 shell을 우선 spike한다.
 - 기존 web app dist를 Tauri webview에 탑재한다.
 - native 기능은 최소 3개만 붙인다: tray, notification, deep link/open session.
-- 검증: Windows 빌드 산출물 생성, local gateway 연결, 새 세션 생성/채팅 smoke.
+- 현재 상태: `src-tauri/` scaffold와 tray proof point를 추가했고 WSL Linux target에서 `cargo check`/`cargo build` 통과. 자세한 결과는 `docs/windows-tauri-spike.md`.
+- 남은 검증: Windows host 또는 Windows CI runner에서 `cargo tauri build` installer/portable 산출물 생성, native window에서 Hermes gateway session/chat smoke.
 
 ### Phase 3 — Android/iOS Mobile Shell
 - Capacitor shell을 우선 spike한다.

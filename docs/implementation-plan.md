@@ -58,6 +58,8 @@ Split `src/domain` and `src/services` into platform-neutral modules with storage
 ### Task 7: Windows shell spike
 Add a Tauri v2 wrapper around the built web app and verify local gateway connection, tray, notification, and deep link feasibility.
 
+Status: initial scaffold complete. `src-tauri/` wraps the existing web app, tray proof point compiles, and `cargo check`/`cargo build` pass on WSL Linux target. See `docs/windows-tauri-spike.md` for the evidence and remaining Windows-host validation.
+
 ### Task 8: Mobile shell spike
 Add a Capacitor wrapper and verify Android debug build plus iOS project/simulator generation.
 

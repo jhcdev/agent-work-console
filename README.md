@@ -13,7 +13,8 @@
 - dev server가 `~/.hermes/.env`의 `API_SERVER_HOST`, `API_SERVER_PORT`를 읽어 현재 Hermes gateway 위치로 proxy 연결
 - Hermes API 장애 시 mock fallback으로 오프라인 데모 가능
 - Web/PWA manifest 포함: 브라우저에서 설치형 앱처럼 사용 가능
-- 의존성 없는 정적 앱: npm install 없이 테스트/빌드 가능
+- Windows Tauri v2 shell scaffold 포함: 기존 `dist`를 desktop webview에 탑재하고 tray proof point 제공
+- 의존성 없는 정적 웹 앱: npm install 없이 테스트/빌드 가능
 
 ## 플랫폼 목표
 
@@ -34,6 +35,15 @@ npm test
 npm run build
 npm run dev
 # http://127.0.0.1:5173
+```
+
+Desktop shell 검증:
+
+```bash
+cargo check --manifest-path src-tauri/Cargo.toml
+cargo build --manifest-path src-tauri/Cargo.toml
+npm run desktop        # requires cargo-tauri CLI
+npm run desktop:build  # requires cargo-tauri CLI; Windows installer는 Windows host/CI에서 검증
 ```
 
 독립 checkout을 쓰는 경우:
@@ -83,4 +93,6 @@ scripts/build.mjs              # dist 생성
 scripts/dev-server.mjs         # zero-dependency local server + Hermes gateway proxy
 tests/*.test.mjs               # node:test 기반 테스트
 docs/platform-app-plan.md      # Windows/Android/iOS 설치형 앱 전환 계획
+docs/windows-tauri-spike.md    # Tauri desktop shell spike 결과와 남은 Windows 검증
+src-tauri/                     # Tauri v2 desktop shell scaffold
 ```
