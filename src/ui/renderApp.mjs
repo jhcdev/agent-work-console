@@ -5,10 +5,12 @@ function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 }
 
-export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', status = 'all', query = '' }) {
+export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', status = 'all', query = '', connection = {} }) {
   const visibleTasks = filterTasks(tasks, { workspaceId, status, query });
   const selected = tasks.find((task) => task.id === selectedTaskId) || visibleTasks[0] || tasks[0];
   const counts = countByStatus(tasks);
+  const baseUrl = connection.baseUrl || '/hermes';
+  const sessionKey = connection.sessionKey || 'web:jihun:agent-console';
 
   return `
     <aside class="sidebar">
@@ -18,9 +20,10 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
       </nav>
       <section class="connection-card">
         <div class="section-title">Hermes 연결</div>
-        <label>Base URL<input id="baseUrl" value="/hermes" /></label>
-        <label>API Key<input id="apiKey" type="password" placeholder="API_SERVER_KEY" /></label>
-        <label>Session Key<input id="sessionKey" value="web:jihun:agent-console" /></label>
+        <label>Base URL<input id="baseUrl" value="${esc(baseUrl)}" /></label>
+        <label>API Key<input id="apiKey" type="password" placeholder="필요 시 브라우저에서만 입력" /></label>
+        <label>Session Key<input id="sessionKey" value="${esc(sessionKey)}" /></label>
+        <p class="muted">기본값은 현재 실행 중인 Hermes gateway를 /hermes 프록시로 그대로 사용합니다. dev server는 API_SERVER_KEY를 읽거나 주입하지 않습니다.</p>
         <button class="primary" id="saveConfig">설정 저장</button>
       </section>
     </aside>
