@@ -149,12 +149,12 @@ function defaultSessionTitle() {
 
 export function readConnectionConfig() {
   try {
-    return JSON.parse(localStorage.getItem('agent-console-config') || '{}');
+    return JSON.parse(localStorage.getItem('hermes-work-config') || localStorage.getItem('agent-console-config') || '{}');
   } catch {
     return {};
   }
 }
 
 export function saveConnectionConfig(config) {
-  localStorage.setItem('agent-console-config', JSON.stringify(config));
+  localStorage.setItem('hermes-work-config', JSON.stringify(config));
 }

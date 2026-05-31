@@ -20,19 +20,19 @@ test('package exposes desktop shell scripts without replacing web workflow', asy
 test('Tauri config wraps the existing web dist and dev server', async () => {
   const config = await readJson('src-tauri/tauri.conf.json');
 
-  assert.equal(config.identifier, 'dev.jhc.agent-work-console');
+  assert.equal(config.identifier, 'dev.jhc.hermes-work');
   assert.equal(config.build.devUrl, 'http://127.0.0.1:5173');
   assert.equal(config.build.frontendDist, '../dist');
   assert.equal(config.build.beforeDevCommand, 'npm run dev');
   assert.equal(config.build.beforeBuildCommand, 'npm run build');
-  assert.equal(config.app.windows[0].title, 'Agent Work Console');
+  assert.equal(config.app.windows[0].title, 'Hermes Work');
   assert.ok(config.app.windows[0].width >= 1200);
 });
 
 test('Tauri Cargo manifest uses v2 runtime crates', async () => {
   const manifest = await readFile(new URL('src-tauri/Cargo.toml', root), 'utf8');
 
-  assert.match(manifest, /name = "agent-work-console-app"/);
+  assert.match(manifest, /name = "hermes-work-app"/);
   assert.match(manifest, /tauri = \{ version = "2"/);
   assert.match(manifest, /tauri-build = \{ version = "2"/);
 });

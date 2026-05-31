@@ -1,4 +1,4 @@
-package dev.jhc.agentworkconsole;
+package dev.jhc.hermeswork;
 
 import com.getcapacitor.BridgeActivity;
 

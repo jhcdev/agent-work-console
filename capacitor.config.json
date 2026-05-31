@@ -1,6 +1,6 @@
 {
-  "appId": "dev.jhc.agentworkconsole",
-  "appName": "Agent Work Console",
+  "appId": "dev.jhc.hermeswork",
+  "appName": "Hermes Work",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {

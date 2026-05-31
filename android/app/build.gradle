@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "dev.jhc.agentworkconsole"
+    namespace "dev.jhc.hermeswork"
     compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "dev.jhc.agentworkconsole"
+        applicationId "dev.jhc.hermeswork"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

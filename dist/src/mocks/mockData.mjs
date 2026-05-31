@@ -38,9 +38,9 @@ export const mockTasks = [
     approvals: [{ id: 'appr-1', label: 'Gateway restart 승인', command: 'hermes gateway restart' }], artifacts: []
   },
   {
-    id: 'task-agent-console', workspaceId: 'hermes', title: 'Agent Work Console MVP', status: 'done', priority: 'high', updatedAt: iso(60), owner: 'Jihun',
-    summary: 'Windows/Android/iOS 설치형 앱까지 확장할 Agent Work Console의 Web/PWA MVP입니다.',
-    messages: [{ role: 'user', text: '크로스플랫폼 Agent Work Console를 만들어줘', at: iso(120) }, { role: 'agent', text: 'MVP 계획과 구현을 완료했습니다.', at: iso(60) }],
+    id: 'task-agent-console', workspaceId: 'hermes', title: 'Hermes Work MVP', status: 'done', priority: 'high', updatedAt: iso(60), owner: 'Jihun',
+    summary: 'Windows/Android/iOS 설치형 앱까지 확장할 Hermes Work의 Web/PWA MVP입니다.',
+    messages: [{ role: 'user', text: '크로스플랫폼 Hermes Work를 만들어줘', at: iso(120) }, { role: 'agent', text: 'MVP 계획과 구현을 완료했습니다.', at: iso(60) }],
     logs: [{ level: 'success', text: 'npm test and build passed', at: iso(60) }], approvals: [], artifacts: [{ name: 'dist/', kind: 'build' }]
   },
   {

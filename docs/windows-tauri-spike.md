@@ -4,7 +4,7 @@
 
 ## Question
 
-Given the current zero-dependency Web/PWA Agent Work Console, can we wrap the existing `dist` output in a Tauri v2 desktop shell without replacing the web workflow?
+Given the current zero-dependency Web/PWA Hermes Work, can we wrap the existing `dist` output in a Tauri v2 desktop shell without replacing the web workflow?
 
 ## Approach
 
@@ -16,7 +16,7 @@ Given the current zero-dependency Web/PWA Agent Work Console, can we wrap the ex
 - Configure Tauri to use:
   - dev URL: `http://127.0.0.1:5173`
   - production frontend dist: `../dist`
-- Add a tray menu proof point with Korean labels: `Agent Work Console 열기`, `종료`.
+- Add a tray menu proof point with Korean labels: `Hermes Work 열기`, `종료`.
 - Add desktop icon assets required by Tauri.
 
 ## Implemented files

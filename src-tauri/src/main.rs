@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    agent_work_console_app_lib::run();
+    hermes_work_app_lib::run();
 }

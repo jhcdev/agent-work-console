@@ -1,6 +1,6 @@
-# Agent Work Console
+# Hermes Work
 
-모바일과 PC 어디서든 AI 에이전트의 작업 흐름을 한곳에서 추적하고, 대화·실행 로그·승인·결과물을 작업 단위로 관리하는 Agent Work Console입니다.
+모바일과 PC 어디서든 AI 에이전트의 작업 흐름을 한곳에서 추적하고, 대화·실행 로그·승인·결과물을 작업 단위로 관리하는 Hermes Work입니다.
 
 > 현재 구현은 Web/PWA 기반 MVP입니다. 최종 제품 목표는 웹만이 아니라 **Windows / Android / iOS 설치형 앱**까지 포함하는 크로스 플랫폼 애플리케이션입니다. 플랫폼별 계획은 `docs/platform-app-plan.md`를 기준으로 합니다.
 
@@ -31,7 +31,7 @@
 Hermes fork 안의 submodule 위치에서 실행하는 기준:
 
 ```bash
-cd /home/ml/.hermes/hermes-agent/apps/agent-work-console
+cd /home/ml/.hermes/hermes-agent/apps/hermes-work
 npm test
 npm run build
 npm run dev
@@ -65,7 +65,7 @@ cd android
 독립 checkout을 쓰는 경우:
 
 ```bash
-cd /home/ml/agent-work-console
+cd /home/ml/hermes-work
 npm run dev
 ```
 
@@ -88,7 +88,7 @@ hermes gateway restart
 기본 연결:
 
 - Base URL: `/hermes`
-- Session Key: `web:jihun:agent-console`
+- Session Key: `web:jihun:hermes-work`
 - API key는 UI/dev server에 저장하거나 자동 주입하지 않음. local companion은 Hermes gateway의 loopback 정책으로 처리.
 
 다른 Hermes API gateway에 붙이고 싶으면 실행 시 환경변수로 target을 지정할 수 있습니다.

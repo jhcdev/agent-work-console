@@ -7,12 +7,12 @@ pub fn run() {
                 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
                 use tauri::Manager;
 
-                let show = MenuItem::with_id(app, "show", "Agent Work Console 열기", true, None::<&str>)?;
+                let show = MenuItem::with_id(app, "show", "Hermes Work 열기", true, None::<&str>)?;
                 let quit = MenuItem::with_id(app, "quit", "종료", true, None::<&str>)?;
                 let menu = Menu::with_items(app, &[&show, &quit])?;
 
                 TrayIconBuilder::new()
-                    .tooltip("Agent Work Console")
+                    .tooltip("Hermes Work")
                     .menu(&menu)
                     .on_menu_event(|app, event| match event.id.as_ref() {
                         "show" => {
@@ -43,5 +43,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("failed to run Agent Work Console desktop shell");
+        .expect("failed to run Hermes Work desktop shell");
 }

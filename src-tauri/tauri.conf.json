@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Agent Work Console",
+  "productName": "Hermes Work",
   "version": "0.1.0",
-  "identifier": "dev.jhc.agent-work-console",
+  "identifier": "dev.jhc.hermes-work",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:5173",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Agent Work Console",
+        "title": "Hermes Work",
         "width": 1280,
         "height": 820,
         "minWidth": 960,
@@ -28,7 +28,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "shortDescription": "Hermes Agent Work Console",
+    "shortDescription": "Hermes Work",
     "longDescription": "Cross-platform console for managing Hermes agent sessions, prompts, and task runs."
   }
 }

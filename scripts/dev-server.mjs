@@ -58,13 +58,13 @@ function proxyHermes(req, res, pathname) {
 
 function serveConfig(res) {
   res.writeHead(200, { 'content-type': 'application/json' });
-  res.end(JSON.stringify({ baseUrl: '/hermes', sessionKey: 'web:jihun:agent-console' }));
+  res.end(JSON.stringify({ baseUrl: '/hermes', sessionKey: 'web:jihun:hermes-work' }));
 }
 
 export function createServer() {
   return http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, `http://localhost:${port}`).pathname);
-    if (pathname === '/agent-console/config') return serveConfig(res);
+    if (pathname === '/hermes-work/config' || pathname === '/agent-console/config') return serveConfig(res);
     if (pathname === '/hermes' || pathname.startsWith('/hermes/')) return proxyHermes(req, res, pathname);
     let file = join(base, pathname === '/' ? 'index.html' : pathname.replace(/^\//, ''));
     if (!existsSync(file) || statSync(file).isDirectory()) file = join(base, 'index.html');
@@ -75,6 +75,6 @@ export function createServer() {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   createServer().listen(port, '0.0.0.0', () => {
-    console.log(`Agent Work Console on http://127.0.0.1:${port} (Hermes proxy: /hermes -> ${hermesTarget})`);
+    console.log(`Hermes Work on http://127.0.0.1:${port} (Hermes proxy: /hermes -> ${hermesTarget})`);
   });
 }

@@ -1,1 +1,1 @@
-{"name":"Agent Work Console","short_name":"AgentConsole","description":"AI 에이전트 작업 흐름을 모바일과 PC에서 추적하고 관리하는 콘솔","start_url":"/","display":"standalone","background_color":"#08090a","theme_color":"#5e6ad2","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml"}]}
+{"name":"Hermes Work","short_name":"HermesWork","description":"AI 에이전트 작업 흐름을 모바일과 PC에서 추적하고 관리하는 콘솔","start_url":"/","display":"standalone","background_color":"#08090a","theme_color":"#5e6ad2","icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml"}]}

@@ -20,8 +20,8 @@ test('package exposes optional Capacitor mobile shell scripts', async () => {
 test('Capacitor config wraps the existing web dist for Android and iOS shells', async () => {
   const config = await readJson('capacitor.config.json');
 
-  assert.equal(config.appId, 'dev.jhc.agentworkconsole');
-  assert.equal(config.appName, 'Agent Work Console');
+  assert.equal(config.appId, 'dev.jhc.hermeswork');
+  assert.equal(config.appName, 'Hermes Work');
   assert.equal(config.webDir, 'dist');
   assert.equal(config.server.androidScheme, 'https');
   assert.equal(config.server.iosScheme, 'https');

@@ -13,12 +13,12 @@ const state = {
   workspaceId: 'all',
   status: 'all',
   query: '',
-  connection: { baseUrl: '/hermes', sessionKey: 'web:jihun:agent-console', useMockFallback: true },
+  connection: { baseUrl: '/hermes', sessionKey: 'web:jihun:hermes-work', useMockFallback: true },
   sessionMessages: [],
   chatState: { loading: false, sending: false, error: '' },
-  detailPanelWidth: sanitizeDetailPanelWidth(localStorage.getItem('agentConsole.detailPanelWidth')),
+  detailPanelWidth: sanitizeDetailPanelWidth(localStorage.getItem('hermesWork.detailPanelWidth') || localStorage.getItem('agentConsole.detailPanelWidth')),
   mobileSessionListOpen: false,
-  chatFocusMode: localStorage.getItem('agentConsole.chatFocusMode') === 'true',
+  chatFocusMode: (localStorage.getItem('hermesWork.chatFocusMode') || localStorage.getItem('agentConsole.chatFocusMode')) === 'true',
   searchComposing: false,
 };
 const root = document.getElementById('root');
@@ -90,7 +90,7 @@ function bind() {
   });
   document.getElementById('toggleChatFocus')?.addEventListener('click', () => {
     state.chatFocusMode = !state.chatFocusMode;
-    localStorage.setItem('agentConsole.chatFocusMode', String(state.chatFocusMode));
+    localStorage.setItem('hermesWork.chatFocusMode', String(state.chatFocusMode));
     render();
   });
 }
@@ -123,7 +123,7 @@ function startDetailPanelResize(event) {
   };
   const onPointerUp = () => {
     document.body.classList.remove('resizing-detail-panel');
-    localStorage.setItem('agentConsole.detailPanelWidth', String(state.detailPanelWidth));
+    localStorage.setItem('hermesWork.detailPanelWidth', String(state.detailPanelWidth));
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', onPointerUp);
   };
@@ -138,11 +138,16 @@ function submitChatOnEnter(event) {
 }
 
 async function loadServerConfig() {
-  try {
-    const response = await fetch('/agent-console/config');
-    if (response.ok) state.connection = { ...state.connection, ...(await response.json()) };
-  } catch {
-    // Static preview or file:// use can still rely on defaults/localStorage.
+  for (const configPath of ['/hermes-work/config', '/agent-console/config']) {
+    try {
+      const response = await fetch(configPath);
+      if (response.ok) {
+        state.connection = { ...state.connection, ...(await response.json()) };
+        return;
+      }
+    } catch {
+      // Static preview or file:// use can still rely on defaults/localStorage.
+    }
   }
 }
 
@@ -159,7 +164,11 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
     state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
     const selectedChanged = state.selectedTaskId !== selectedBefore;
     render({ restoreSearchFocus: searchCaret !== undefined, searchCaret, restoreBoardScroll: true, boardScrollTop });
-    if (loadMessages || selectedChanged) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
+    if (state.selectedTaskId && (loadMessages || selectedChanged)) {
+      await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
+    } else if (state.selectedTaskId) {
+      await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop, silent: true });
+    }
   } finally {
     refreshInFlight = false;
   }
@@ -187,8 +196,10 @@ async function createNewSession() {
 
 async function loadSelectedMessages(options = {}) {
   if (!state.selectedTaskId) return;
-  state.chatState = { ...state.chatState, loading: true, error: '' };
-  render(options);
+  if (!options.silent) {
+    state.chatState = { ...state.chatState, loading: true, error: '' };
+    render(options);
+  }
   try {
     state.sessionMessages = await client().listMessages(state.selectedTaskId);
     state.chatState = { ...state.chatState, loading: false, error: '' };

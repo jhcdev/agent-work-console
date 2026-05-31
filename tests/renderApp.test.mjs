@@ -13,7 +13,7 @@ test('renders a lean session kanban and chat panel', () => {
     ],
   });
 
-  assert.match(html, /Agent Work Console/);
+  assert.match(html, /Hermes Work/);
   assert.match(html, /세션 칸반/);
   assert.match(html, /TSR annotation tool 수정/);
   assert.match(html, /sessionChatForm/);

@@ -1,8 +1,8 @@
-# Agent Work Console Platform App Plan
+# Hermes Work Platform App Plan
 
-> **For Hermes:** 이 문서는 Agent Work Console을 단순 웹/PWA가 아니라 Windows, Android, iOS 설치형 앱까지 포함하는 제품으로 전환하기 위한 플랫폼 전략이다.
+> **For Hermes:** 이 문서는 Hermes Work을 단순 웹/PWA가 아니라 Windows, Android, iOS 설치형 앱까지 포함하는 제품으로 전환하기 위한 플랫폼 전략이다.
 
-**Goal:** 하나의 Hermes session/task core를 공유하면서 Windows, Android, iOS 각각에 맞는 설치형 Agent Work Console을 제공한다.
+**Goal:** 하나의 Hermes session/task core를 공유하면서 Windows, Android, iOS 각각에 맞는 설치형 Hermes Work을 제공한다.
 
 **Architecture:** 현재 정적 웹 앱은 공통 UI/도메인/API 코어의 첫 구현체로 유지한다. 다음 단계는 `src/domain`, `src/services`, `src/ui`를 플랫폼 중립 패키지로 정리하고, 각 플랫폼 shell이 같은 Hermes API client와 session/chat 모델을 재사용하게 만든다.
 
@@ -30,7 +30,7 @@
 - 새 작업/최근 세션 빠른 열기.
 - local Hermes gateway 자동 탐지: `127.0.0.1:8642` 또는 사용자가 설정한 remote gateway.
 - OS 알림: 작업 완료, 승인 필요, 실패.
-- 향후: protocol deep link `agent-console://session/<id>`.
+- 향후: protocol deep link `hermes-work://session/<id>`.
 
 ### Android
 - 하단 탭 또는 compact session list 우선.

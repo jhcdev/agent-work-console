@@ -12,7 +12,7 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
 
   return `
     <aside class="sidebar">
-      <div class="brand"><div class="logo">▣</div><div><strong>Agent Work Console</strong><span>Hermes session control</span></div></div>
+      <div class="brand"><div class="logo">▣</div><div><strong>Hermes Work</strong><span>Hermes work control</span></div></div>
       <nav class="workspace-list" aria-label="워크스페이스">
         ${workspaces.map((w) => `<button class="workspace ${workspaceId === w.id ? 'active' : ''}" data-workspace="${esc(w.id)}"><span>${esc(w.icon)}</span>${esc(w.name)}</button>`).join('')}
       </nav>

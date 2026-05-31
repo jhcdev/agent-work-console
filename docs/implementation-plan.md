@@ -1,8 +1,8 @@
-# Agent Work Console Implementation Plan
+# Hermes Work Implementation Plan
 
 > **For Hermes:** This plan covers the current Web/PWA MVP. The product-level cross-platform requirement is broader: Windows, Android, and iOS installation targets are tracked in `docs/platform-app-plan.md`.
 
-**Goal:** Build the first working Agent Work Console core that tracks AI-agent sessions, conversations, execution logs, approvals, and results by task.
+**Goal:** Build the first working Hermes Work core that tracks AI-agent sessions, conversations, execution logs, approvals, and results by task.
 
 **Architecture:** A zero-dependency static ES-module web app for the first MVP, with platform-neutral domain/API modules that can later be reused by native shells. The UI is session-first: workspace sidebar, session board, selected session chat panel. The app uses a Hermes API client for real `/api/sessions`, `/api/sessions/{id}/messages`, and `/api/sessions/{id}/chat` integration, with mock data fallback for offline development.
 

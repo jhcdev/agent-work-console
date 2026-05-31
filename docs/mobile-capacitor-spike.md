@@ -4,7 +4,7 @@
 
 ## Question
 
-Given the current Web/PWA Agent Work Console and the Tauri desktop shell, can we add a Capacitor shell that reuses the same `dist` output for Android and iOS without changing the core session/task implementation?
+Given the current Web/PWA Hermes Work and the Tauri desktop shell, can we add a Capacitor shell that reuses the same `dist` output for Android and iOS without changing the core session/task implementation?
 
 ## Approach
 

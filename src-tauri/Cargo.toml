@@ -1,14 +1,14 @@
 [package]
-name = "agent-work-console-app"
+name = "hermes-work-app"
 version = "0.1.0"
-description = "Agent Work Console desktop shell"
+description = "Hermes Work desktop shell"
 authors = ["Jihun Chae"]
 license = "MIT"
 edition = "2021"
 rust-version = "1.77"
 
 [lib]
-name = "agent_work_console_app_lib"
+name = "hermes_work_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
