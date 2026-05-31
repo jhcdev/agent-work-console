@@ -14,6 +14,8 @@ const state = {
   sessionMessages: [],
   chatState: { loading: false, sending: false, error: '' },
   detailPanelWidth: sanitizeDetailPanelWidth(localStorage.getItem('agentConsole.detailPanelWidth')),
+  mobileSessionListOpen: false,
+  chatFocusMode: localStorage.getItem('agentConsole.chatFocusMode') === 'true',
 };
 const root = document.getElementById('root');
 
@@ -27,6 +29,8 @@ function client() {
 
 function render() {
   root.style.setProperty('--detail-width', `${state.detailPanelWidth}px`);
+  root.classList.toggle('session-list-open', state.mobileSessionListOpen);
+  root.classList.toggle('chat-focus-mode', state.chatFocusMode);
   root.innerHTML = createAppMarkup({ ...state, connection: mergedConnectionConfig() });
   bind();
   scrollMessagesToBottom();
@@ -48,6 +52,7 @@ function bind() {
   document.querySelectorAll('[data-task]').forEach((el) => el.addEventListener('click', async () => {
     state.selectedTaskId = el.dataset.task;
     state.sessionMessages = [];
+    state.mobileSessionListOpen = false;
     render();
     await loadSelectedMessages();
   }));
@@ -57,6 +62,19 @@ function bind() {
   document.getElementById('sessionChatForm')?.addEventListener('submit', sendChatPrompt);
   document.getElementById('chatInput')?.addEventListener('keydown', submitChatOnEnter);
   document.getElementById('chatResizeHandle')?.addEventListener('pointerdown', startDetailPanelResize);
+  document.getElementById('toggleSessionList')?.addEventListener('click', () => {
+    state.mobileSessionListOpen = true;
+    render();
+  });
+  document.getElementById('closeSessionList')?.addEventListener('click', () => {
+    state.mobileSessionListOpen = false;
+    render();
+  });
+  document.getElementById('toggleChatFocus')?.addEventListener('click', () => {
+    state.chatFocusMode = !state.chatFocusMode;
+    localStorage.setItem('agentConsole.chatFocusMode', String(state.chatFocusMode));
+    render();
+  });
 }
 
 function startDetailPanelResize(event) {
@@ -110,6 +128,7 @@ async function createNewSession() {
     state.status = 'all';
     state.query = '';
     state.sessionMessages = [];
+    state.mobileSessionListOpen = false;
     state.chatState = { ...state.chatState, loading: false, error: '' };
     render();
   } catch (error) {

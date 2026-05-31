@@ -5,7 +5,7 @@ function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 }
 
-export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', status = 'all', query = '', sessionMessages = [], chatState = {} }) {
+export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', status = 'all', query = '', sessionMessages = [], chatState = {}, chatFocusMode = false }) {
   const visibleTasks = filterTasks(tasks, { workspaceId, status, query });
   const selected = tasks.find((task) => task.id === selectedTaskId) || visibleTasks[0] || tasks[0];
   const counts = countByStatus(tasks);
@@ -21,7 +21,7 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
     <main class="board">
       <header class="topbar">
         <div><p class="eyebrow">세션 칸반</p><h1>세션을 고르고 그대로 대화합니다</h1></div>
-        <div class="topbar-actions"><button class="primary" id="newSession">새 세션</button><button class="ghost" id="refreshTasks">새로고침</button></div>
+        <div class="topbar-actions"><button class="ghost mobile-only" id="closeSessionList" aria-label="세션 목록 접기">채팅으로 돌아가기</button><button class="primary" id="newSession">새 세션</button><button class="ghost" id="refreshTasks">새로고침</button></div>
       </header>
       <section class="stats">
         ${Object.entries(counts).map(([key, value]) => `<button class="stat ${status === key ? 'active' : ''}" data-status="${esc(key)}"><span class="dot ${statusTone(key)}"></span><strong>${value}</strong><small>${statusLabel(key)}</small></button>`).join('')}
@@ -34,7 +34,7 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
 
     <aside class="detail">
       <button id="chatResizeHandle" class="chat-resize-handle" type="button" aria-label="채팅 패널 크기 조절" title="채팅 패널 크기 조절"></button>
-      ${selected ? sessionChat(selected, sessionMessages, chatState) : '<div class="empty">세션을 선택하세요.</div>'}
+      ${selected ? sessionChat(selected, sessionMessages, chatState, chatFocusMode) : '<div class="empty">세션을 선택하세요.</div>'}
     </aside>
   `;
 }
@@ -49,9 +49,11 @@ function taskCard(task, selectedId) {
   </article>`;
 }
 
-function sessionChat(task, messages, chatState) {
+function sessionChat(task, messages, chatState, chatFocusMode) {
   const list = messages?.length ? messages : task.messages || [];
-  return `<div class="detail-header"><span class="status ${statusTone(task.status)}">${statusLabel(task.status)}</span><h2>${esc(task.title)}</h2><p>${esc(task.summary)}</p></div>
+  const focusLabel = chatFocusMode ? '채팅창 축소' : '채팅창 확장';
+  return `<div class="mobile-chat-bar"><button id="toggleSessionList" class="ghost" type="button" aria-label="세션 목록 펼치기">☰ 세션 목록</button><span>${esc(task.title)}</span></div>
+  <div class="detail-header"><div class="detail-title-row"><div><span class="status ${statusTone(task.status)}">${statusLabel(task.status)}</span><h2>${esc(task.title)}</h2></div><button id="toggleChatFocus" class="ghost" type="button" aria-label="채팅창 전체화면 전환">${focusLabel}</button></div><p>${esc(task.summary)}</p></div>
   <section class="chat-panel">
     <div class="chat-head"><div class="section-title">대화내역</div>${chatState.loading ? '<span class="sync-pill">불러오는 중</span>' : ''}</div>
     ${chatState.error ? `<p class="error-text">${esc(chatState.error)}</p>` : ''}

@@ -23,9 +23,26 @@ test('renders a lean session kanban and chat panel', () => {
   assert.match(html, /Shift\+Enter 줄바꿈/);
   assert.match(html, /chatResizeHandle/);
   assert.match(html, /채팅 패널 크기 조절/);
+  assert.match(html, /toggleSessionList/);
+  assert.match(html, /세션 목록 펼치기/);
+  assert.match(html, /closeSessionList/);
+  assert.match(html, /채팅으로 돌아가기/);
+  assert.match(html, /toggleChatFocus/);
+  assert.match(html, /채팅창 확장/);
   assert.match(html, /확인했습니다/);
   assert.doesNotMatch(html, /Hermes 연결/);
   assert.doesNotMatch(html, /<div class="section-title">실행 로그/);
   assert.doesNotMatch(html, /<div class="section-title">승인/);
   assert.doesNotMatch(html, /<div class="section-title">결과물/);
+});
+
+test('renders chat focus mode with a collapse action', () => {
+  const html = createAppMarkup({
+    tasks: mockTasks,
+    selectedTaskId: 'task-tsr-annotation',
+    chatFocusMode: true,
+  });
+
+  assert.match(html, /toggleChatFocus/);
+  assert.match(html, /채팅창 축소/);
 });
