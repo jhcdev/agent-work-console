@@ -9,6 +9,18 @@
     "test": "node --test tests/*.test.mjs",
     "preview": "node scripts/dev-server.mjs dist 4173",
     "desktop": "cargo tauri dev --manifest-path src-tauri/Cargo.toml",
-    "desktop:build": "cargo tauri build --manifest-path src-tauri/Cargo.toml"
+    "desktop:build": "cargo tauri build --manifest-path src-tauri/Cargo.toml",
+    "mobile": "npx cap sync",
+    "mobile:android": "npx cap open android",
+    "mobile:ios": "npx cap open ios",
+    "mobile:doctor": "npx cap doctor"
+  },
+  "dependencies": {
+    "@capacitor/core": "7.6.5"
+  },
+  "devDependencies": {
+    "@capacitor/android": "7.6.5",
+    "@capacitor/cli": "7.6.5",
+    "@capacitor/ios": "7.6.5"
   }
 }

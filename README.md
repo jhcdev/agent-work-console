@@ -14,6 +14,7 @@
 - Hermes API 장애 시 mock fallback으로 오프라인 데모 가능
 - Web/PWA manifest 포함: 브라우저에서 설치형 앱처럼 사용 가능
 - Windows Tauri v2 shell scaffold 포함: 기존 `dist`를 desktop webview에 탑재하고 tray proof point 제공
+- Android/iOS Capacitor shell scaffold 포함: 기존 `dist`를 mobile webview에 탑재하고 Android debug APK build 검증
 - 의존성 없는 정적 웹 앱: npm install 없이 테스트/빌드 가능
 
 ## 플랫폼 목표
@@ -44,6 +45,21 @@ cargo check --manifest-path src-tauri/Cargo.toml
 cargo build --manifest-path src-tauri/Cargo.toml
 npm run desktop        # requires cargo-tauri CLI
 npm run desktop:build  # requires cargo-tauri CLI; Windows installer는 Windows host/CI에서 검증
+```
+
+Mobile shell 검증:
+
+```bash
+npm install
+npm run build
+npm run mobile         # Capacitor sync for android/ios
+npm run mobile:doctor  # WSL에서는 Xcode 없음으로 non-zero 가능; Android 상태는 출력됨
+
+# Android debug APK build, requires Android SDK + JDK 21
+export ANDROID_HOME=/home/ml/Android/Sdk
+export ANDROID_SDK_ROOT=/home/ml/Android/Sdk
+cd android
+./gradlew assembleDebug
 ```
 
 독립 checkout을 쓰는 경우:
@@ -94,5 +110,9 @@ scripts/dev-server.mjs         # zero-dependency local server + Hermes gateway p
 tests/*.test.mjs               # node:test 기반 테스트
 docs/platform-app-plan.md      # Windows/Android/iOS 설치형 앱 전환 계획
 docs/windows-tauri-spike.md    # Tauri desktop shell spike 결과와 남은 Windows 검증
+docs/mobile-capacitor-spike.md # Capacitor mobile shell spike 결과와 Android/iOS 검증 상태
 src-tauri/                     # Tauri v2 desktop shell scaffold
+android/                       # Capacitor Android native project scaffold
+ios/                           # Capacitor iOS native project scaffold
+capacitor.config.json          # Capacitor Android/iOS shell config
 ```

@@ -63,5 +63,7 @@ Status: initial scaffold complete. `src-tauri/` wraps the existing web app, tray
 ### Task 8: Mobile shell spike
 Add a Capacitor wrapper and verify Android debug build plus iOS project/simulator generation.
 
+Status: initial scaffold complete. `capacitor.config.json`, `android/`, and `ios/` wrap the existing web app, `npm run mobile` syncs both native projects, and Android debug APK build passes on WSL with Android SDK + JDK 21. iOS native build remains a macOS/Xcode/CocoaPods validation item. See `docs/mobile-capacitor-spike.md`.
+
 ### Task 9: Mobile UX pass
 Make session board/chat panel comfortable on phone dimensions: compact list, persistent input, safe-area handling, platform navigation.

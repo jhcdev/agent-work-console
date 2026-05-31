@@ -67,7 +67,8 @@
 - Capacitor shell을 우선 spike한다.
 - 기존 web UI를 mobile layout으로 보완한다.
 - native 기능은 최소 3개만 붙인다: push notification placeholder, secure storage, share target.
-- 검증: Android debug build, iOS project generation, Hermes gateway 연결 smoke.
+- 현재 상태: `capacitor.config.json`, `android/`, `ios/` scaffold를 추가했고 WSL에서 Android debug APK build가 통과했다. 자세한 결과는 `docs/mobile-capacitor-spike.md`.
+- 남은 검증: macOS/Xcode/CocoaPods 환경에서 iOS simulator build, Android 실제 기기/에뮬레이터 설치 후 Hermes gateway session/chat smoke.
 
 ### Phase 4 — Real-time + Distribution
 - SSE/WebSocket으로 session/run 이벤트 실시간 업데이트.
@@ -87,8 +88,8 @@
 다음 큰 구현은 “새 기능 추가”보다 **platform shell spike**가 우선이다. 추천 순서는:
 
 1. Windows Tauri shell
-2. Capacitor mobile shell 공통 scaffold
-3. Android smoke
+2. Capacitor mobile shell 공통 scaffold — 완료: Android/iOS project scaffold, Android debug APK build 통과
+3. Android device/emulator smoke
 4. iOS project/simulator smoke
 
 이 순서가 좋은 이유는 현재 Hermes gateway가 Windows/WSL local companion 성격이 강하고, desktop shell에서 local gateway/proxy/tray/notification 요구사항을 먼저 검증할 수 있기 때문이다.

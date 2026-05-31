@@ -1,2 +1,17 @@
+node_modules/
+dist/
+
+# Tauri desktop shell build artifacts
 src-tauri/target/
 src-tauri/gen/schemas/
+
+# Capacitor mobile shell local/build artifacts
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+ios/App/build/
+ios/App/Pods/
+ios/App/output/
+ios/DerivedData/
+ios/xcuserdata/
