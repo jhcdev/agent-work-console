@@ -154,11 +154,7 @@ function bind() {
     state.mobileSessionListOpen = false;
     render();
   });
-  document.getElementById('toggleChatFocus')?.addEventListener('click', () => {
-    state.chatFocusMode = !state.chatFocusMode;
-    localStorage.setItem('hermesWork.chatFocusMode', String(state.chatFocusMode));
-    render();
-  });
+  document.getElementById('toggleChatFocus')?.addEventListener('click', toggleChatFocusMode);
   document.getElementById('categoryMove')?.addEventListener('change', moveSelectedTaskToCategory);
   document.getElementById('statusMove')?.addEventListener('change', moveSelectedTaskToStatus);
 }
@@ -198,6 +194,14 @@ function endWorkspaceDrag(event) {
   state.draggedWorkspaceId = '';
   event.currentTarget.classList.remove('dragging');
   document.querySelectorAll('.workspace-row.drop-target').forEach((el) => el.classList.remove('drop-target'));
+}
+
+function toggleChatFocusMode() {
+  state.chatFocusMode = !state.chatFocusMode;
+  localStorage.setItem('hermesWork.chatFocusMode', String(state.chatFocusMode));
+  root.classList.toggle('chat-focus-mode', state.chatFocusMode);
+  const button = document.getElementById('toggleChatFocus');
+  if (button) button.textContent = state.chatFocusMode ? '채팅창 축소' : '채팅창 확장';
 }
 
 function bindGlobalRefreshControls() {
