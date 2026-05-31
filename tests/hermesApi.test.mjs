@@ -77,6 +77,26 @@ test('maps useful Hermes sessions including active gateway rows to newest-first 
   assert.equal(tasks[2].messageCount, 4);
 });
 
+test('classifies live Hermes sessions into workspace categories from title and summary', async () => {
+  const fetcher = async () => new Response(JSON.stringify({
+    object: 'list',
+    data: [
+      { id: 'tsr-session', source: 'discord', title: 'TSR annotation 개선', message_count: 1, updated_at: 1780000000 },
+      { id: 'comfy-session', source: 'discord', title: 'ComfyUI ESP workflow', message_count: 1, updated_at: 1780000001 },
+      { id: 'research-session', source: 'discord', title: '논문 조사', message_count: 1, updated_at: 1780000002 },
+    ],
+  }), { status: 200 });
+  const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun', useMockFallback: false }, fetcher);
+
+  const tasks = await client.listTasks();
+
+  assert.deepEqual(Object.fromEntries(tasks.map((task) => [task.id, task.workspaceId])), {
+    'research-session': 'research',
+    'comfy-session': 'comfyui',
+    'tsr-session': 'tsr',
+  });
+});
+
 test('creates a new Hermes session and maps the response to a task', async () => {
   const calls = [];
   const fetcher = async (url, init) => {
@@ -100,19 +120,28 @@ test('creates a new Hermes session and maps the response to a task', async () =>
 });
 
 test('normalizes persisted session messages for the chat panel', async () => {
-  const fetcher = async () => new Response(JSON.stringify({
-    object: 'list',
-    data: [
-      { id: 1, role: 'user', content: 'hello', timestamp: 1780000000 },
-      { id: 2, role: 'assistant', content: '', tool_calls: [{ function: { name: 'read_file' } }], timestamp: 1780000001 },
-      { id: 3, role: 'tool', content: 'tool output', tool_name: 'read_file', timestamp: 1780000002 },
-    ],
-  }), { status: 200 });
+  const calls = [];
+  const fetcher = async (url, init) => {
+    calls.push([url, init]);
+    return new Response(JSON.stringify({
+      object: 'list',
+      total_count: 3,
+      limit: 300,
+      data: [
+        { id: 1, role: 'user', content: 'hello', timestamp: 1780000000 },
+        { id: 2, role: 'assistant', content: '', tool_calls: [{ function: { name: 'read_file' } }], timestamp: 1780000001 },
+        { id: 3, role: 'tool', content: 'tool output', tool_name: 'read_file', timestamp: 1780000002 },
+      ],
+    }), { status: 200 });
+  };
   const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun' }, fetcher);
 
   const messages = await client.listMessages('session-1');
 
   assert.deepEqual(messages.map((message) => message.role), ['user', 'assistant', 'tool']);
+  assert.match(calls?.[0]?.[0] || '', /limit=300/);
+  assert.match(calls?.[0]?.[0] || '', /max_content_chars=8000/);
+  assert.equal(messages.totalCount, 3);
   assert.equal(messages[0].text, 'hello');
   assert.equal(messages[1].text, 'tool call: read_file');
   assert.equal(messages[2].text, 'tool output');

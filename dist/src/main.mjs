@@ -3,8 +3,11 @@ import { createAppMarkup } from './ui/renderApp.mjs';
 import { shouldSubmitChatShortcut } from './ui/keyboardShortcuts.mjs';
 import { detailWidthFromPointer, sanitizeDetailPanelWidth } from './ui/panelResize.mjs';
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
+import { filterTasks } from './domain/taskUtils.mjs';
 
 const SESSION_REFRESH_INTERVAL_MS = 1000;
+const MESSAGE_LOAD_LIMIT = 300;
+const MESSAGE_MAX_CONTENT_CHARS = 8_000;
 let refreshInFlight = false;
 
 const state = {
@@ -52,17 +55,21 @@ function render(options = {}) {
 }
 
 function bind() {
-  document.querySelectorAll('[data-workspace]').forEach((el) => el.addEventListener('click', () => {
+  document.querySelectorAll('[data-workspace]').forEach((el) => el.addEventListener('click', async () => {
+    const boardScrollTop = getBoardScrollTop();
     state.workspaceId = el.dataset.workspace;
-    state.selectedTaskId = undefined;
+    state.selectedTaskId = firstVisibleTaskId();
     state.sessionMessages = [];
-    render();
+    render({ restoreBoardScroll: true, boardScrollTop });
+    if (state.selectedTaskId) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   }));
-  document.querySelectorAll('[data-status]').forEach((el) => el.addEventListener('click', () => {
+  document.querySelectorAll('[data-status]').forEach((el) => el.addEventListener('click', async () => {
+    const boardScrollTop = getBoardScrollTop();
     state.status = el.dataset.status;
-    state.selectedTaskId = undefined;
+    state.selectedTaskId = firstVisibleTaskId();
     state.sessionMessages = [];
-    render();
+    render({ restoreBoardScroll: true, boardScrollTop });
+    if (state.selectedTaskId) await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
   }));
   document.querySelectorAll('[data-task]').forEach((el) => el.addEventListener('click', async () => {
     const boardScrollTop = getBoardScrollTop();
@@ -219,10 +226,20 @@ async function loadSelectedMessages(options = {}) {
     render(options);
   }
   try {
-    const fetchedMessages = await client().listMessages(state.selectedTaskId);
+    const fetchedMessages = await client().listMessages(state.selectedTaskId, {
+      limit: MESSAGE_LOAD_LIMIT,
+      maxContentChars: MESSAGE_MAX_CONTENT_CHARS,
+    });
     state.sessionMessages = fetchedMessages;
+    state.chatState = {
+      ...state.chatState,
+      loading: false,
+      error: '',
+      totalCount: fetchedMessages.totalCount ?? fetchedMessages.length,
+      loadedCount: fetchedMessages.length,
+      messageLimit: fetchedMessages.limit ?? MESSAGE_LOAD_LIMIT,
+    };
     prunePersistedLocalMessages(state.selectedTaskId, fetchedMessages);
-    state.chatState = { ...state.chatState, loading: false, error: '' };
   } catch (error) {
     const fallback = state.tasks.find((task) => task.id === state.selectedTaskId)?.messages || [];
     state.sessionMessages = fallback;
@@ -315,6 +332,14 @@ function restoreSearchFocus(caret = state.query.length) {
 
 function getBoardScrollTop() {
   return document.querySelector('.board')?.scrollTop ?? 0;
+}
+
+function firstVisibleTaskId() {
+  return filterTasks(state.tasks, {
+    workspaceId: state.workspaceId,
+    status: state.status,
+    query: state.query,
+  })[0]?.id;
 }
 
 function restoreBoardScroll(scrollTop = 0) {

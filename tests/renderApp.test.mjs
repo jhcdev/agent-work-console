@@ -46,3 +46,27 @@ test('renders chat focus mode with a collapse action', () => {
   assert.match(html, /toggleChatFocus/);
   assert.match(html, /채팅창 축소/);
 });
+
+test('does not show an unrelated detail panel when a category has no visible tasks', () => {
+  const html = createAppMarkup({
+    tasks: mockTasks,
+    workspaceId: 'research',
+    status: 'failed',
+  });
+
+  assert.match(html, /조건에 맞는 세션이 없습니다/);
+  assert.match(html, /세션을 선택하세요/);
+  assert.doesNotMatch(html, /TSR annotation tool 수정/);
+});
+
+test('renders fast-history notice and truncation marker', () => {
+  const html = createAppMarkup({
+    tasks: mockTasks,
+    selectedTaskId: 'task-tsr-annotation',
+    chatState: { totalCount: 1200, loadedCount: 300 },
+    sessionMessages: [{ role: 'tool', text: 'x'.repeat(10), truncated: true, omittedChars: 9000, at: new Date().toISOString() }],
+  });
+
+  assert.match(html, /최근 300 \/ 전체 1,200개 메시지만 로딩/);
+  assert.match(html, /긴 내용 9,000자를 접었습니다/);
+});

@@ -38,10 +38,17 @@ export class HermesApiClient {
     return { object: 'list', data: all, limit, offset: 0, has_more: Boolean(last?.has_more) };
   }
 
-  async listMessages(sessionId) {
-    const payload = await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
+  async listMessages(sessionId, { limit = 300, maxContentChars = 8_000 } = {}) {
+    const params = new URLSearchParams();
+    if (limit !== undefined && limit !== null) params.set('limit', String(limit));
+    if (maxContentChars !== undefined && maxContentChars !== null) params.set('max_content_chars', String(maxContentChars));
+    const suffix = params.toString() ? `?${params}` : '';
+    const payload = await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/messages${suffix}`);
     const rows = Array.isArray(payload) ? payload : payload.data || payload.messages || [];
-    return rows.map(normalizeMessage).filter(Boolean);
+    const messages = rows.map(normalizeMessage).filter(Boolean);
+    messages.totalCount = payload.total_count ?? messages.length;
+    messages.limit = payload.limit ?? limit;
+    return messages;
   }
 
   async sendChat(sessionId, message) {
@@ -97,11 +104,19 @@ function sessionToTask(session) {
   const messageCount = session.message_count ?? session.messages?.length ?? 0;
   const source = String(session.source || '').trim();
   return {
-    id: String(id), workspaceId: session.workspaceId || 'hermes', title, status: session.status || (session.ended_at ? 'done' : 'running'), priority: 'medium',
+    id: String(id), workspaceId: session.workspaceId || inferWorkspaceId(session), title, status: session.status || (session.ended_at ? 'done' : 'running'), priority: 'medium',
     updatedAt: timestampToIso(session.updated_at || session.updatedAt || session.last_active || session.ended_at || session.started_at) || new Date().toISOString(), owner: session.user || source || 'Hermes',
     summary: session.summary || session.preview || defaultSessionSummary({ messageCount, source, session }),
     messages: [], logs: [], approvals: [], artifacts: [], messageCount,
   };
+}
+
+function inferWorkspaceId(session) {
+  const haystack = `${session.title || ''} ${session.name || ''} ${session.summary || ''} ${session.preview || ''} ${session.source || ''}`.toLowerCase();
+  if (/tsr|svnet|annotation|annot|traffic sign|표지판/.test(haystack)) return 'tsr';
+  if (/comfy|generation_tool|generate|image|workflow|esp|av/i.test(haystack)) return 'comfyui';
+  if (/research|wiki|paper|논문|조사|리서치/.test(haystack)) return 'research';
+  return 'hermes';
 }
 
 function defaultSessionSummary({ messageCount, source, session }) {
@@ -124,13 +139,17 @@ export function normalizeMessage(message) {
   const toolCallNames = Array.isArray(message.tool_calls)
     ? message.tool_calls.map((call) => call?.function?.name || call?.name).filter(Boolean)
     : [];
-  const text = String(message.content || message.text || (toolCallNames.length ? `tool call: ${toolCallNames.join(', ')}` : '') || '').trim();
+  const rawText = String(message.content || message.text || (toolCallNames.length ? `tool call: ${toolCallNames.join(', ')}` : '') || '').trim();
+  const clientMax = 8_000;
+  const text = rawText.length > clientMax ? rawText.slice(0, clientMax) : rawText;
   return {
     id: message.id,
     role: message.role || 'message',
     text,
     at: timestampToIso(message.timestamp || message.created_at || message.at) || new Date().toISOString(),
     toolName: message.tool_name || toolCallNames.join(', '),
+    truncated: Boolean(message.content_truncated || rawText.length > clientMax),
+    omittedChars: Number(message.content_omitted_chars || Math.max(0, rawText.length - clientMax) || 0),
   };
 }
 

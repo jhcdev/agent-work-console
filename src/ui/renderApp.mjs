@@ -7,7 +7,9 @@ function esc(value) {
 
 export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', status = 'all', query = '', sessionMessages = [], chatState = {}, chatFocusMode = false }) {
   const visibleTasks = filterTasks(tasks, { workspaceId, status, query });
-  const selected = tasks.find((task) => task.id === selectedTaskId) || visibleTasks[0] || tasks[0];
+  const selected = selectedTaskId
+    ? tasks.find((task) => task.id === selectedTaskId)
+    : visibleTasks[0];
   const counts = countByStatus(tasks);
 
   return `
@@ -55,7 +57,7 @@ function sessionChat(task, messages, chatState, chatFocusMode) {
   return `<div class="mobile-chat-bar"><button id="toggleSessionList" class="ghost" type="button" aria-label="세션 목록 펼치기">☰ 세션 목록</button><span>${esc(task.title)}</span></div>
   <div class="detail-header"><div class="detail-title-row"><div><span class="status ${statusTone(task.status)}">${statusLabel(task.status)}</span><h2>${esc(task.title)}</h2></div><button id="toggleChatFocus" class="ghost" type="button" aria-label="채팅창 전체화면 전환">${focusLabel}</button></div><p>${esc(task.summary)}</p></div>
   <section class="chat-panel">
-    <div class="chat-head"><div class="section-title">대화내역</div>${chatState.loading ? '<span class="sync-pill">불러오는 중</span>' : ''}</div>
+    <div class="chat-head"><div><div class="section-title">대화내역</div>${historyNotice(chatState)}</div>${chatState.loading ? '<span class="sync-pill">불러오는 중</span>' : ''}</div>
     ${chatState.error ? `<p class="error-text">${esc(chatState.error)}</p>` : ''}
     <div class="message-list" id="messageList">
       ${list.map(messageBubble).join('') || '<p class="muted">아직 이 세션에 표시할 대화가 없습니다. 아래에 프롬프트를 입력하면 이 세션에 이어서 남습니다.</p>'}
@@ -73,10 +75,21 @@ function sessionChat(task, messages, chatState, chatFocusMode) {
 function messageBubble(message) {
   const role = message.role || 'message';
   const text = message.text || message.content || '';
+  const omitted = Number(message.omittedChars || 0);
+  const truncated = message.truncated
+    ? `<span class="truncated-note">긴 내용 ${omitted.toLocaleString('ko-KR')}자를 접었습니다.</span>`
+    : '';
   return `<article class="message ${esc(role)}">
     <div class="message-meta"><b>${roleLabel(role)}</b><time>${formatRelativeTime(message.at || message.timestamp)}</time></div>
-    <p>${esc(text)}</p>
+    <p>${esc(text)}${truncated}</p>
   </article>`;
+}
+
+function historyNotice(chatState) {
+  const total = Number(chatState.totalCount || 0);
+  const loaded = Number(chatState.loadedCount || 0);
+  if (!total || !loaded || total <= loaded) return '';
+  return `<div class="history-notice">빠른 표시를 위해 최근 ${loaded.toLocaleString('ko-KR')} / 전체 ${total.toLocaleString('ko-KR')}개 메시지만 로딩했습니다.</div>`;
 }
 
 function roleLabel(role) {
