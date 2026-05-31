@@ -1,6 +1,7 @@
 import { mockTasks } from './mocks/mockData.mjs';
 import { createAppMarkup } from './ui/renderApp.mjs';
 import { shouldSubmitChatShortcut } from './ui/keyboardShortcuts.mjs';
+import { detailWidthFromPointer, sanitizeDetailPanelWidth } from './ui/panelResize.mjs';
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 
 const state = {
@@ -12,6 +13,7 @@ const state = {
   connection: { baseUrl: '/hermes', sessionKey: 'web:jihun:agent-console', useMockFallback: true },
   sessionMessages: [],
   chatState: { loading: false, sending: false, error: '' },
+  detailPanelWidth: sanitizeDetailPanelWidth(localStorage.getItem('agentConsole.detailPanelWidth')),
 };
 const root = document.getElementById('root');
 
@@ -24,6 +26,7 @@ function client() {
 }
 
 function render() {
+  root.style.setProperty('--detail-width', `${state.detailPanelWidth}px`);
   root.innerHTML = createAppMarkup({ ...state, connection: mergedConnectionConfig() });
   bind();
   scrollMessagesToBottom();
@@ -53,6 +56,24 @@ function bind() {
   document.getElementById('newSession')?.addEventListener('click', createNewSession);
   document.getElementById('sessionChatForm')?.addEventListener('submit', sendChatPrompt);
   document.getElementById('chatInput')?.addEventListener('keydown', submitChatOnEnter);
+  document.getElementById('chatResizeHandle')?.addEventListener('pointerdown', startDetailPanelResize);
+}
+
+function startDetailPanelResize(event) {
+  event.preventDefault();
+  document.body.classList.add('resizing-detail-panel');
+  const onPointerMove = (moveEvent) => {
+    state.detailPanelWidth = detailWidthFromPointer({ viewportWidth: window.innerWidth, pointerX: moveEvent.clientX });
+    root.style.setProperty('--detail-width', `${state.detailPanelWidth}px`);
+  };
+  const onPointerUp = () => {
+    document.body.classList.remove('resizing-detail-panel');
+    localStorage.setItem('agentConsole.detailPanelWidth', String(state.detailPanelWidth));
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+  };
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp, { once: true });
 }
 
 function submitChatOnEnter(event) {

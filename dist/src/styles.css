@@ -26,7 +26,7 @@ button { cursor: pointer; }
   height: 100vh;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px minmax(360px, 1fr) minmax(420px, 520px);
+  grid-template-columns: 240px minmax(320px, 1fr) var(--detail-width, 520px);
   overflow: hidden;
 }
 .sidebar, .detail {
@@ -36,7 +36,34 @@ button { cursor: pointer; }
   padding: 20px;
   overflow: auto;
 }
-.detail { border-left: 1px solid var(--border); border-right: 0; display: flex; flex-direction: column; }
+.detail { border-left: 1px solid var(--border); border-right: 0; display: flex; flex-direction: column; position: relative; }
+.chat-resize-handle {
+  position: absolute;
+  left: -5px;
+  top: 0;
+  width: 10px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 5;
+}
+.chat-resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 18px;
+  bottom: 18px;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background .15s ease;
+}
+.chat-resize-handle:hover::after,
+.resizing-detail-panel .chat-resize-handle::after { background: rgba(113,112,255,.65); }
+.resizing-detail-panel { cursor: col-resize; user-select: none; }
 .board { padding: 24px; overflow: auto; }
 .brand { display: flex; gap: 12px; align-items: center; margin-bottom: 24px; }
 .brand span { display: block; color: var(--muted); font-size: 12px; }
@@ -127,6 +154,7 @@ h1 { font-size: 34px; line-height: 1.05; margin: 0; }
 .muted, .empty { color: var(--muted); }
 @media (max-width: 980px) {
   #root { grid-template-columns: 1fr; }
+  .chat-resize-handle { display: none; }
   .sidebar, .detail { border: 0; border-bottom: 1px solid var(--border); }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .topbar { align-items: flex-start; flex-direction: column; }

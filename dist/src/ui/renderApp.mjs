@@ -33,6 +33,7 @@ export function createAppMarkup({ tasks, selectedTaskId, workspaceId = 'all', st
     </main>
 
     <aside class="detail">
+      <button id="chatResizeHandle" class="chat-resize-handle" type="button" aria-label="채팅 패널 크기 조절" title="채팅 패널 크기 조절"></button>
       ${selected ? sessionChat(selected, sessionMessages, chatState) : '<div class="empty">세션을 선택하세요.</div>'}
     </aside>
   `;
