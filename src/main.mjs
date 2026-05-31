@@ -1,29 +1,55 @@
 import { mockTasks } from './mocks/mockData.mjs';
 import { createAppMarkup } from './ui/renderApp.mjs';
-import { HermesApiClient, readConnectionConfig, saveConnectionConfig } from './services/hermesApi.mjs';
+import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 
-const state = { tasks: mockTasks, selectedTaskId: mockTasks[0].id, workspaceId: 'all', status: 'all', query: '', connection: { baseUrl: '/hermes', sessionKey: 'web:jihun:agent-console' } };
+const state = {
+  tasks: mockTasks,
+  selectedTaskId: mockTasks[0].id,
+  workspaceId: 'all',
+  status: 'all',
+  query: '',
+  connection: { baseUrl: '/hermes', sessionKey: 'web:jihun:agent-console', useMockFallback: true },
+  sessionMessages: [],
+  chatState: { loading: false, sending: false, error: '' },
+};
 const root = document.getElementById('root');
 
 function mergedConnectionConfig() {
-  return { ...state.connection, ...readConnectionConfig() };
+  return { ...state.connection, ...readConnectionConfig(), useMockFallback: true };
+}
+
+function client() {
+  return new HermesApiClient(mergedConnectionConfig());
 }
 
 function render() {
   root.innerHTML = createAppMarkup({ ...state, connection: mergedConnectionConfig() });
   bind();
+  scrollMessagesToBottom();
 }
 
 function bind() {
-  document.querySelectorAll('[data-workspace]').forEach((el) => el.addEventListener('click', () => { state.workspaceId = el.dataset.workspace; state.selectedTaskId = undefined; render(); }));
-  document.querySelectorAll('[data-status]').forEach((el) => el.addEventListener('click', () => { state.status = el.dataset.status; state.selectedTaskId = undefined; render(); }));
-  document.querySelectorAll('[data-task]').forEach((el) => el.addEventListener('click', () => { state.selectedTaskId = el.dataset.task; render(); }));
+  document.querySelectorAll('[data-workspace]').forEach((el) => el.addEventListener('click', () => {
+    state.workspaceId = el.dataset.workspace;
+    state.selectedTaskId = undefined;
+    state.sessionMessages = [];
+    render();
+  }));
+  document.querySelectorAll('[data-status]').forEach((el) => el.addEventListener('click', () => {
+    state.status = el.dataset.status;
+    state.selectedTaskId = undefined;
+    state.sessionMessages = [];
+    render();
+  }));
+  document.querySelectorAll('[data-task]').forEach((el) => el.addEventListener('click', async () => {
+    state.selectedTaskId = el.dataset.task;
+    state.sessionMessages = [];
+    render();
+    await loadSelectedMessages();
+  }));
   document.getElementById('search')?.addEventListener('input', (event) => { state.query = event.target.value; render(); });
-  document.getElementById('saveConfig')?.addEventListener('click', () => {
-    saveConnectionConfig({ baseUrl: document.getElementById('baseUrl').value, apiKey: document.getElementById('apiKey').value, sessionKey: document.getElementById('sessionKey').value, useMockFallback: true });
-    alert('Hermes 연결 설정을 저장했습니다. 기본값은 현재 실행 중인 Hermes gateway 프록시(/hermes)를 사용합니다.');
-  });
   document.getElementById('refreshTasks')?.addEventListener('click', refreshTasks);
+  document.getElementById('sessionChatForm')?.addEventListener('submit', sendChatPrompt);
 }
 
 async function loadServerConfig() {
@@ -36,11 +62,52 @@ async function loadServerConfig() {
 }
 
 async function refreshTasks() {
-  const formConfig = { baseUrl: document.getElementById('baseUrl')?.value, apiKey: document.getElementById('apiKey')?.value, sessionKey: document.getElementById('sessionKey')?.value, useMockFallback: true };
-  const client = new HermesApiClient({ ...state.connection, ...readConnectionConfig(), ...formConfig });
-  state.tasks = await client.listTasks();
-  state.selectedTaskId = state.tasks[0]?.id;
+  const selectedBefore = state.selectedTaskId;
+  state.tasks = await client().listTasks();
+  state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
   render();
+  await loadSelectedMessages();
+}
+
+async function loadSelectedMessages() {
+  if (!state.selectedTaskId) return;
+  state.chatState = { ...state.chatState, loading: true, error: '' };
+  render();
+  try {
+    state.sessionMessages = await client().listMessages(state.selectedTaskId);
+    state.chatState = { ...state.chatState, loading: false, error: '' };
+  } catch (error) {
+    const fallback = state.tasks.find((task) => task.id === state.selectedTaskId)?.messages || [];
+    state.sessionMessages = fallback;
+    state.chatState = { ...state.chatState, loading: false, error: `대화내역을 불러오지 못했습니다: ${error.message}` };
+  }
+  render();
+}
+
+async function sendChatPrompt(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const input = form.querySelector('#chatInput');
+  const message = input?.value.trim();
+  const sessionId = form.dataset.session;
+  if (!message || !sessionId) return;
+
+  state.chatState = { ...state.chatState, sending: true, error: '' };
+  state.sessionMessages = [...state.sessionMessages, { role: 'user', text: message, at: new Date().toISOString() }];
+  render();
+  try {
+    await client().sendChat(sessionId, message);
+    state.chatState = { ...state.chatState, sending: false };
+    await loadSelectedMessages();
+  } catch (error) {
+    state.chatState = { ...state.chatState, sending: false, error: `전송 실패: ${error.message}` };
+    render();
+  }
+}
+
+function scrollMessagesToBottom() {
+  const list = document.getElementById('messageList');
+  if (list) list.scrollTop = list.scrollHeight;
 }
 
 await loadServerConfig();

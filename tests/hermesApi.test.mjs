@@ -26,3 +26,57 @@ test('returns mock tasks when API call fails and fallback is enabled', async () 
   assert.ok(tasks.length > 0);
   assert.ok(tasks[0].title);
 });
+
+test('maps only useful Hermes sessions to task cards', async () => {
+  const fetcher = async () => new Response(JSON.stringify({
+    object: 'list',
+    data: [
+      { id: 'empty-cron', source: 'cron', message_count: 0, preview: '', started_at: 1780000000 },
+      { id: 'scheduled-cron', source: 'cron', message_count: 32, preview: 'scheduled task', started_at: 1780000001 },
+      { id: 'empty-discord', source: 'discord', title: '빈 세션', message_count: 0, preview: '', started_at: 1780000002 },
+      { id: 'chat-session', source: 'discord', title: '실제 작업 세션', message_count: 4, preview: '작업 이어서', started_at: 1780000003 },
+    ],
+  }), { status: 200 });
+  const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun', useMockFallback: false }, fetcher);
+
+  const tasks = await client.listTasks();
+
+  assert.deepEqual(tasks.map((task) => task.id), ['chat-session']);
+  assert.equal(tasks[0].messageCount, 4);
+});
+
+test('normalizes persisted session messages for the chat panel', async () => {
+  const fetcher = async () => new Response(JSON.stringify({
+    object: 'list',
+    data: [
+      { id: 1, role: 'user', content: 'hello', timestamp: 1780000000 },
+      { id: 2, role: 'assistant', content: '', tool_calls: [{ function: { name: 'read_file' } }], timestamp: 1780000001 },
+      { id: 3, role: 'tool', content: 'tool output', tool_name: 'read_file', timestamp: 1780000002 },
+    ],
+  }), { status: 200 });
+  const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun' }, fetcher);
+
+  const messages = await client.listMessages('session-1');
+
+  assert.deepEqual(messages.map((message) => message.role), ['user', 'assistant', 'tool']);
+  assert.equal(messages[0].text, 'hello');
+  assert.equal(messages[1].text, 'tool call: read_file');
+  assert.equal(messages[2].text, 'tool output');
+  assert.match(messages[0].at, /T/);
+});
+
+test('posts chat prompts to a persisted Hermes session', async () => {
+  const calls = [];
+  const fetcher = async (url, init) => {
+    calls.push([url, init]);
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  };
+  const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun' }, fetcher);
+
+  await client.sendChat('session-1', '계속 진행해줘');
+
+  assert.equal(calls[0][0], '/hermes/api/sessions/session-1/chat');
+  assert.equal(calls[0][1].method, 'POST');
+  assert.equal(JSON.parse(calls[0][1].body).message, '계속 진행해줘');
+  assert.equal(calls[0][1].headers['X-Hermes-Session-Key'], 'web:jihun');
+});
