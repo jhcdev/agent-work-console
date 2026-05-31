@@ -99,10 +99,11 @@ button { cursor: pointer; }
 .workspace-controls { display: flex; gap: 3px; align-items: stretch; }
 .mini { padding: 3px 5px; border-radius: 7px; font-size: 10px; color: var(--muted); }
 .mini.danger { color: #fecaca; border-color: rgba(239,68,68,.25); }
-.category-form { display: grid; gap: 6px; margin: 0 0 10px; padding: 0 0 10px; border-bottom: 1px solid var(--border); }
+.category-form { display: grid; gap: 6px; min-width: 0; width: 100%; margin: 0 0 10px; padding: 0 0 10px; border-bottom: 1px solid var(--border); }
 .category-form label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
-.category-input-row { display: flex; gap: 6px; }
-.category-input-row input { min-width: 0; flex: 1; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.035); color: var(--text); padding: 7px 9px; }
+.category-input-row { display: flex; gap: 6px; min-width: 0; width: 100%; }
+.category-input-row > input { min-width: 0; width: auto; flex: 1 1 0; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.035); color: var(--text); padding: 7px 9px; }
+.category-input-row > button { flex: 0 0 auto; white-space: nowrap; }
 .category-form p { color: var(--muted); font-size: 11px; line-height: 1.35; margin: 0; }
 .workspace.active, .stat.active, .task-card.selected {
   border-color: rgba(113,112,255,.7);
