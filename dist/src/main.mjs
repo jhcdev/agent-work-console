@@ -10,8 +10,8 @@ import { buildWorkspaceList, createUserWorkspace, deleteUserWorkspace, matchUser
 import { setStatusOverride } from './domain/statuses.mjs';
 
 const SESSION_REFRESH_INTERVAL_MS = 1000;
-const MESSAGE_LOAD_LIMIT = 1000;
-const MESSAGE_LAZY_CHUNK_SIZE = 1000;
+const MESSAGE_LOAD_LIMIT = 10000;
+const MESSAGE_LAZY_CHUNK_SIZE = 10000;
 const MESSAGE_MAX_CONTENT_CHARS = 3_000;
 let refreshInFlight = false;
 
