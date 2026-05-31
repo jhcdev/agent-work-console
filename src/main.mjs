@@ -16,6 +16,7 @@ const state = {
   detailPanelWidth: sanitizeDetailPanelWidth(localStorage.getItem('agentConsole.detailPanelWidth')),
   mobileSessionListOpen: false,
   chatFocusMode: localStorage.getItem('agentConsole.chatFocusMode') === 'true',
+  searchComposing: false,
 };
 const root = document.getElementById('root');
 
@@ -27,12 +28,13 @@ function client() {
   return new HermesApiClient(mergedConnectionConfig());
 }
 
-function render() {
+function render(options = {}) {
   root.style.setProperty('--detail-width', `${state.detailPanelWidth}px`);
   root.classList.toggle('session-list-open', state.mobileSessionListOpen);
   root.classList.toggle('chat-focus-mode', state.chatFocusMode);
   root.innerHTML = createAppMarkup({ ...state, connection: mergedConnectionConfig() });
   bind();
+  if (options.restoreSearchFocus) restoreSearchFocus(options.searchCaret);
   scrollMessagesToBottom();
 }
 
@@ -56,7 +58,18 @@ function bind() {
     render();
     await loadSelectedMessages();
   }));
-  document.getElementById('search')?.addEventListener('input', (event) => { state.query = event.target.value; render(); });
+  const searchInput = document.getElementById('search');
+  searchInput?.addEventListener('compositionstart', () => { state.searchComposing = true; });
+  searchInput?.addEventListener('compositionend', (event) => {
+    state.searchComposing = false;
+    state.query = event.target.value;
+    render({ restoreSearchFocus: true, searchCaret: event.target.value.length });
+  });
+  searchInput?.addEventListener('input', (event) => {
+    state.query = event.target.value;
+    if (state.searchComposing || event.isComposing) return;
+    render({ restoreSearchFocus: true, searchCaret: event.target.selectionStart });
+  });
   document.getElementById('refreshTasks')?.addEventListener('click', refreshTasks);
   document.getElementById('newSession')?.addEventListener('click', createNewSession);
   document.getElementById('sessionChatForm')?.addEventListener('submit', sendChatPrompt);
@@ -176,6 +189,14 @@ async function sendChatPrompt(event) {
 function scrollMessagesToBottom() {
   const list = document.getElementById('messageList');
   if (list) list.scrollTop = list.scrollHeight;
+}
+
+function restoreSearchFocus(caret = state.query.length) {
+  const search = document.getElementById('search');
+  if (!search) return;
+  search.focus();
+  const nextCaret = Math.min(caret ?? state.query.length, search.value.length);
+  search.setSelectionRange(nextCaret, nextCaret);
 }
 
 await loadServerConfig();
