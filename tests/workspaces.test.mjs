@@ -4,6 +4,7 @@ import {
   buildWorkspaceList,
   createUserWorkspace,
   deleteUserWorkspace,
+  matchUserWorkspaceForTask,
   moveUserWorkspace,
 } from '../src/domain/workspaces.mjs';
 
@@ -36,9 +37,21 @@ test('creates stable custom category IDs and keeps user sort order mutable', () 
   const created = createUserWorkspace(initial, '장기 작업');
   assert.equal(created.workspace.id, 'custom-janggi-jageob');
   assert.equal(created.workspace.name, '장기 작업');
+  assert.equal(created.workspace.matchQuery, '장기 작업');
 
   const moved = moveUserWorkspace(created.workspaces, 'custom-janggi-jageob', -1);
   assert.deepEqual(moved.map((workspace) => workspace.id), ['custom-a', 'custom-janggi-jageob', 'custom-b']);
+});
+
+test('matches sessions into user categories by category keyword before defaults', () => {
+  const userWorkspaces = [
+    { id: 'custom-svnet3', name: 'SVNET3', icon: '📁', order: 0, custom: true },
+    { id: 'custom-meeting', name: '회의', icon: '📁', order: 1, custom: true },
+  ];
+
+  assert.equal(matchUserWorkspaceForTask({ title: 'SVNET3 TSR 모델 디버깅', summary: 'annotation 개선' }, userWorkspaces), 'custom-svnet3');
+  assert.equal(matchUserWorkspaceForTask({ title: '주간 정리', summary: '회의 메모 요약' }, userWorkspaces), 'custom-meeting');
+  assert.equal(matchUserWorkspaceForTask({ title: 'ComfyUI workflow 수정', summary: '이미지 생성' }, userWorkspaces), undefined);
 });
 
 test('deletes only custom categories and reports reassigned tasks', () => {

@@ -5,7 +5,7 @@ import { detailWidthFromPointer, sanitizeDetailPanelWidth } from './ui/panelResi
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 import { filterTasks } from './domain/taskUtils.mjs';
 import { shouldReloadSelectedMessages } from './domain/sessionRefresh.mjs';
-import { createUserWorkspace, deleteUserWorkspace, moveUserWorkspace, normalizeUserWorkspaces } from './domain/workspaces.mjs';
+import { createUserWorkspace, deleteUserWorkspace, matchUserWorkspaceForTask, moveUserWorkspace, normalizeUserWorkspaces } from './domain/workspaces.mjs';
 import { setStatusOverride } from './domain/statuses.mjs';
 
 const SESSION_REFRESH_INTERVAL_MS = 1000;
@@ -202,6 +202,7 @@ function createCategory(event) {
     state.categoryDraft = '';
     input.value = '';
     saveUserWorkspaces();
+    state.tasks = state.tasks.map(applyTaskOverrides);
     state.selectedTaskId = firstVisibleTaskId();
     state.sessionMessages = [];
     render();
@@ -408,9 +409,11 @@ function prunePersistedLocalMessages(sessionId, fetchedMessages) {
 
 function applyTaskOverrides(task) {
   const override = state.taskWorkspaceOverrides[task.id];
+  const matchedUserWorkspace = override ? undefined : matchUserWorkspaceForTask(task, state.userWorkspaces);
   const statusOverride = state.taskStatusOverrides[task.id];
   return {
     ...task,
+    ...(matchedUserWorkspace ? { workspaceId: matchedUserWorkspace } : {}),
     ...(override ? { workspaceId: override } : {}),
     ...(statusOverride ? { status: statusOverride } : {}),
   };

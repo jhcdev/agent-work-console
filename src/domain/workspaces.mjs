@@ -35,6 +35,7 @@ export function normalizeUserWorkspaces(workspaces = []) {
       id: String(workspace.id),
       name: String(workspace.name),
       icon: workspace.icon || '📁',
+      matchQuery: String(workspace.matchQuery || workspace.name).trim(),
       order: Number.isFinite(Number(workspace.order)) ? Number(workspace.order) : index,
       custom: true,
     }))
@@ -48,8 +49,18 @@ export function createUserWorkspace(existing = [], name, icon = '📁') {
   const current = normalizeUserWorkspaces(existing);
   const baseId = `custom-${slugifyWorkspaceName(trimmed)}`;
   const id = uniqueWorkspaceId(baseId, current);
-  const workspace = { id, name: trimmed, icon: icon || '📁', order: current.length, custom: true };
+  const workspace = { id, name: trimmed, icon: icon || '📁', matchQuery: trimmed, order: current.length, custom: true };
   return { workspace, workspaces: [...current, workspace] };
+}
+
+export function matchUserWorkspaceForTask(task = {}, userWorkspaces = []) {
+  const haystack = `${task.title || ''} ${task.name || ''} ${task.summary || ''} ${task.preview || ''} ${task.owner || ''} ${task.source || ''}`.toLowerCase();
+  if (!haystack.trim()) return undefined;
+  const match = normalizeUserWorkspaces(userWorkspaces).find((workspace) => {
+    const query = String(workspace.matchQuery || workspace.name || '').trim().toLowerCase();
+    return query && haystack.includes(query);
+  });
+  return match?.id;
 }
 
 export function moveUserWorkspace(existing = [], workspaceId, direction) {
