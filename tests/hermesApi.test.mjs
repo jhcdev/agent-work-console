@@ -13,8 +13,35 @@ test('sends bearer auth and session key when listing sessions', async () => {
   await client.listSessions();
 
   assert.equal(calls[0][0], 'http://localhost:8642/api/sessions?limit=200&offset=0');
+  assert.equal(calls[0][1].cache, 'no-store');
   assert.equal(calls[0][1].headers.Authorization, 'Bearer secret');
   assert.equal(calls[0][1].headers['X-Hermes-Session-Key'], 'web:jihun');
+});
+
+test('paginates the full session list instead of stopping after five pages', async () => {
+  const calls = [];
+  const fetcher = async (url, init) => {
+    calls.push([url, init]);
+    const offset = Number(new URL(url, 'http://example.test').searchParams.get('offset'));
+    return new Response(JSON.stringify({
+      object: 'list',
+      data: [0, 1].map((index) => ({
+        id: `session-${offset + index}`,
+        source: 'api_server',
+        message_count: 0,
+        updated_at: 1780000000 + offset + index,
+      })),
+      has_more: true,
+    }), { status: 200 });
+  };
+  const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun', useMockFallback: false }, fetcher);
+
+  const sessions = await client.listSessions({ limit: 200 });
+
+  assert.equal(calls.length, 25);
+  assert.equal(calls.at(-1)[0], '/hermes/api/sessions?limit=200&offset=48');
+  assert.equal(sessions.data.length, 50);
+  assert.equal(sessions.has_more, true);
 });
 
 test('returns mock tasks when API call fails and fallback is enabled', async () => {

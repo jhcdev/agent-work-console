@@ -4,7 +4,7 @@ import { shouldSubmitChatShortcut } from './ui/keyboardShortcuts.mjs';
 import { detailWidthFromPointer, sanitizeDetailPanelWidth } from './ui/panelResize.mjs';
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 
-const SESSION_REFRESH_INTERVAL_MS = 5000;
+const SESSION_REFRESH_INTERVAL_MS = 1000;
 let refreshInFlight = false;
 
 const state = {
@@ -105,7 +105,13 @@ function bindGlobalRefreshControls() {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) refreshTasks({ silent: true });
   });
-  window.setInterval(() => refreshTasks({ silent: true }), SESSION_REFRESH_INTERVAL_MS);
+  const scheduleRealtimeRefresh = () => {
+    window.setTimeout(async () => {
+      await refreshTasks({ silent: true });
+      scheduleRealtimeRefresh();
+    }, SESSION_REFRESH_INTERVAL_MS);
+  };
+  scheduleRealtimeRefresh();
 }
 
 function startDetailPanelResize(event) {

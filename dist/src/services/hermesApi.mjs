@@ -19,12 +19,12 @@ export class HermesApiClient {
   }
 
   async request(path, init = {}) {
-    const response = await this.fetcher(this.url(path), { ...init, headers: this.headers(init.headers || {}) });
+    const response = await this.fetcher(this.url(path), { cache: 'no-store', ...init, headers: this.headers(init.headers || {}) });
     if (!response.ok) throw new Error(`Hermes API ${response.status}: ${await response.text()}`);
     return response.json();
   }
 
-  async listSessions({ limit = 200, maxPages = 5 } = {}) {
+  async listSessions({ limit = 200, maxPages = 25 } = {}) {
     const all = [];
     let offset = 0;
     let last = null;
