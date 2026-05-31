@@ -24,8 +24,18 @@ export class HermesApiClient {
     return response.json();
   }
 
-  async listSessions() {
-    return this.request('/api/sessions');
+  async listSessions({ limit = 200, maxPages = 5 } = {}) {
+    const all = [];
+    let offset = 0;
+    let last = null;
+    for (let page = 0; page < maxPages; page += 1) {
+      last = await this.request(`/api/sessions?limit=${limit}&offset=${offset}`);
+      const rows = Array.isArray(last) ? last : last.sessions || last.data || [];
+      all.push(...rows);
+      if (!last?.has_more || rows.length === 0) break;
+      offset += rows.length;
+    }
+    return { object: 'list', data: all, limit, offset: 0, has_more: Boolean(last?.has_more) };
   }
 
   async listMessages(sessionId) {

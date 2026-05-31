@@ -12,7 +12,7 @@ test('sends bearer auth and session key when listing sessions', async () => {
 
   await client.listSessions();
 
-  assert.equal(calls[0][0], 'http://localhost:8642/api/sessions');
+  assert.equal(calls[0][0], 'http://localhost:8642/api/sessions?limit=200&offset=0');
   assert.equal(calls[0][1].headers.Authorization, 'Bearer secret');
   assert.equal(calls[0][1].headers['X-Hermes-Session-Key'], 'web:jihun');
 });
