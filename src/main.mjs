@@ -4,6 +4,9 @@ import { shouldSubmitChatShortcut } from './ui/keyboardShortcuts.mjs';
 import { detailWidthFromPointer, sanitizeDetailPanelWidth } from './ui/panelResize.mjs';
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 
+const SESSION_REFRESH_INTERVAL_MS = 5000;
+let refreshInFlight = false;
+
 const state = {
   tasks: mockTasks,
   selectedTaskId: mockTasks[0].id,
@@ -90,6 +93,19 @@ function bind() {
   });
 }
 
+function bindGlobalRefreshControls() {
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== 'F5' && !(event.key.toLowerCase() === 'r' && (event.metaKey || event.ctrlKey))) return;
+    event.preventDefault();
+    refreshTasks({ force: true, loadMessages: true });
+  });
+  window.addEventListener('focus', () => refreshTasks({ silent: true }));
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshTasks({ silent: true });
+  });
+  window.setInterval(() => refreshTasks({ silent: true }), SESSION_REFRESH_INTERVAL_MS);
+}
+
 function startDetailPanelResize(event) {
   event.preventDefault();
   document.body.classList.add('resizing-detail-panel');
@@ -122,12 +138,22 @@ async function loadServerConfig() {
   }
 }
 
-async function refreshTasks() {
+async function refreshTasks({ force = false, loadMessages = false } = {}) {
+  if (refreshInFlight) return;
+  if (!force && (document.hidden || state.searchComposing)) return;
+  refreshInFlight = true;
   const selectedBefore = state.selectedTaskId;
-  state.tasks = await client().listTasks();
-  state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
-  render();
-  await loadSelectedMessages();
+  const searchCaret = document.activeElement?.id === 'search' ? document.getElementById('search')?.selectionStart : undefined;
+  try {
+    const nextTasks = await client().listTasks();
+    state.tasks = nextTasks;
+    state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
+    const selectedChanged = state.selectedTaskId !== selectedBefore;
+    render({ restoreSearchFocus: searchCaret !== undefined, searchCaret });
+    if (loadMessages || selectedChanged) await loadSelectedMessages();
+  } finally {
+    refreshInFlight = false;
+  }
 }
 
 async function createNewSession() {
@@ -201,4 +227,5 @@ function restoreSearchFocus(caret = state.query.length) {
 
 await loadServerConfig();
 render();
-refreshTasks();
+bindGlobalRefreshControls();
+refreshTasks({ force: true, loadMessages: true });

@@ -63,7 +63,7 @@ export class HermesApiClient {
     try {
       const data = await this.listSessions();
       const sessions = Array.isArray(data) ? data : data.sessions || data.data || [];
-      return sessions.filter(isUsefulSession).map(sessionToTask);
+      return sessions.filter(isUsefulSession).map(sessionToTask).sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
     } catch (error) {
       if (this.config.useMockFallback) return mockTasks;
       throw error;

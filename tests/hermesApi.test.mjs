@@ -27,22 +27,24 @@ test('returns mock tasks when API call fails and fallback is enabled', async () 
   assert.ok(tasks[0].title);
 });
 
-test('maps only useful Hermes sessions to task cards', async () => {
+test('maps only useful Hermes sessions to newest-first task cards', async () => {
   const fetcher = async () => new Response(JSON.stringify({
     object: 'list',
     data: [
       { id: 'empty-cron', source: 'cron', message_count: 0, preview: '', started_at: 1780000000 },
       { id: 'scheduled-cron', source: 'cron', message_count: 32, preview: 'scheduled task', started_at: 1780000001 },
       { id: 'empty-discord', source: 'discord', title: '빈 세션', message_count: 0, preview: '', started_at: 1780000002 },
-      { id: 'chat-session', source: 'discord', title: '실제 작업 세션', message_count: 4, preview: '작업 이어서', started_at: 1780000003 },
+      { id: 'chat-session', source: 'discord', title: '실제 작업 세션', message_count: 4, preview: '작업 이어서', updated_at: 1780000003 },
+      { id: 'new-api-session', source: 'api_server', title: '새 API 세션', message_count: 0, updated_at: 1780000004 },
     ],
   }), { status: 200 });
   const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun', useMockFallback: false }, fetcher);
 
   const tasks = await client.listTasks();
 
-  assert.deepEqual(tasks.map((task) => task.id), ['chat-session']);
-  assert.equal(tasks[0].messageCount, 4);
+  assert.deepEqual(tasks.map((task) => task.id), ['new-api-session', 'chat-session']);
+  assert.equal(tasks[0].messageCount, 0);
+  assert.equal(tasks[1].messageCount, 4);
 });
 
 test('creates a new Hermes session and maps the response to a task', async () => {
