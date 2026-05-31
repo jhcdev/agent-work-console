@@ -55,21 +55,27 @@ test('returns mock tasks when API call fails and fallback is enabled', async () 
 });
 
 test('maps useful Hermes sessions including active gateway rows to newest-first task cards', async () => {
-  const fetcher = async () => new Response(JSON.stringify({
-    object: 'list',
-    data: [
-      { id: 'empty-cron', source: 'cron', message_count: 0, preview: '', started_at: 1780000000 },
-      { id: 'scheduled-cron', source: 'cron', message_count: 32, preview: 'scheduled task', started_at: 1780000001 },
-      { id: 'empty-discord', source: 'discord', title: '빈 세션', message_count: 0, preview: '', started_at: 1780000002 },
-      { id: 'active-discord', source: 'discord', title: '게이트웨이 실행 세션', message_count: 0, preview: '', api_call_count: 7, tool_call_count: 2, last_active: 1780000005 },
-      { id: 'chat-session', source: 'discord', title: '실제 작업 세션', message_count: 4, preview: '작업 이어서', updated_at: 1780000003 },
-      { id: 'new-api-session', source: 'api_server', title: '새 API 세션', message_count: 0, updated_at: 1780000004 },
-    ],
-  }), { status: 200 });
+  const calls = [];
+  const fetcher = async (url, init) => {
+    calls.push([url, init]);
+    return new Response(JSON.stringify({
+      object: 'list',
+      data: [
+        { id: 'empty-cron', source: 'cron', message_count: 0, preview: '', started_at: 1780000000 },
+        { id: 'scheduled-cron', source: 'cron', message_count: 32, preview: 'scheduled task', started_at: 1780000001 },
+        { id: 'empty-discord', source: 'discord', title: '빈 세션', message_count: 0, preview: '', started_at: 1780000002 },
+        { id: 'active-discord', source: 'discord', title: '게이트웨이 실행 세션', message_count: 0, preview: '', api_call_count: 7, tool_call_count: 2, last_active: 1780000005 },
+        { id: 'chat-session', source: 'discord', title: '실제 작업 세션', message_count: 4, preview: '작업 이어서', updated_at: 1780000003 },
+        { id: 'new-api-session', source: 'api_server', title: '새 API 세션', message_count: 0, updated_at: 1780000004 },
+      ],
+    }), { status: 200 });
+  };
   const client = new HermesApiClient({ baseUrl: '/hermes', sessionKey: 'web:jihun', useMockFallback: false }, fetcher);
 
-  const tasks = await client.listTasks();
+  const tasks = await client.listTasks({ maxPages: 1 });
 
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], '/hermes/api/sessions?limit=200&offset=0');
   assert.deepEqual(tasks.map((task) => task.id), ['active-discord', 'new-api-session', 'chat-session']);
   assert.equal(tasks[0].messageCount, 0);
   assert.equal(tasks[0].updatedAt, '2026-05-28T20:26:45.000Z');
@@ -126,7 +132,7 @@ test('normalizes persisted session messages for the chat panel', async () => {
     return new Response(JSON.stringify({
       object: 'list',
       total_count: 3,
-      limit: 300,
+      limit: 150,
       data: [
         { id: 1, role: 'user', content: 'hello', timestamp: 1780000000 },
         { id: 2, role: 'assistant', content: '', tool_calls: [{ function: { name: 'read_file' } }], timestamp: 1780000001 },
@@ -139,8 +145,8 @@ test('normalizes persisted session messages for the chat panel', async () => {
   const messages = await client.listMessages('session-1');
 
   assert.deepEqual(messages.map((message) => message.role), ['user', 'assistant', 'tool']);
-  assert.match(calls?.[0]?.[0] || '', /limit=300/);
-  assert.match(calls?.[0]?.[0] || '', /max_content_chars=8000/);
+  assert.match(calls?.[0]?.[0] || '', /limit=150/);
+  assert.match(calls?.[0]?.[0] || '', /max_content_chars=3000/);
   assert.equal(messages.totalCount, 3);
   assert.equal(messages[0].text, 'hello');
   assert.equal(messages[1].text, 'tool call: read_file');

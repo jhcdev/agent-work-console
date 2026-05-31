@@ -4,10 +4,11 @@ import { shouldSubmitChatShortcut } from './ui/keyboardShortcuts.mjs';
 import { detailWidthFromPointer, sanitizeDetailPanelWidth } from './ui/panelResize.mjs';
 import { HermesApiClient, readConnectionConfig } from './services/hermesApi.mjs';
 import { filterTasks } from './domain/taskUtils.mjs';
+import { shouldReloadSelectedMessages } from './domain/sessionRefresh.mjs';
 
 const SESSION_REFRESH_INTERVAL_MS = 1000;
-const MESSAGE_LOAD_LIMIT = 300;
-const MESSAGE_MAX_CONTENT_CHARS = 8_000;
+const MESSAGE_LOAD_LIMIT = 150;
+const MESSAGE_MAX_CONTENT_CHARS = 3_000;
 let refreshInFlight = false;
 
 const state = {
@@ -172,14 +173,22 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
   if (!force && (document.hidden || state.searchComposing)) return;
   refreshInFlight = true;
   const selectedBefore = state.selectedTaskId;
+  const previousSelectedTask = state.tasks.find((task) => task.id === selectedBefore);
   const searchCaret = document.activeElement?.id === 'search' ? document.getElementById('search')?.selectionStart : undefined;
   const boardScrollTop = getBoardScrollTop();
   const messageScrollTop = getMessageScrollTop();
   try {
-    const nextTasks = await client().listTasks();
-    state.tasks = nextTasks;
+    const nextTasks = await client().listTasks({ maxPages: force || loadMessages ? 25 : 1 });
+    state.tasks = force || loadMessages ? nextTasks : mergeTasksById(state.tasks, nextTasks);
     state.selectedTaskId = state.tasks.some((task) => task.id === selectedBefore) ? selectedBefore : state.tasks[0]?.id;
     const selectedChanged = state.selectedTaskId !== selectedBefore;
+    const nextSelectedTask = state.tasks.find((task) => task.id === state.selectedTaskId);
+    const reloadMessages = shouldReloadSelectedMessages({
+      selectedChanged,
+      loadMessages,
+      previousTask: previousSelectedTask,
+      nextTask: nextSelectedTask,
+    });
     render({
       restoreSearchFocus: searchCaret !== undefined,
       searchCaret,
@@ -188,10 +197,14 @@ async function refreshTasks({ force = false, loadMessages = false } = {}) {
       restoreMessageScroll: !selectedChanged,
       messageScrollTop,
     });
-    if (state.selectedTaskId && (loadMessages || selectedChanged)) {
-      await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop });
-    } else if (state.selectedTaskId) {
-      await loadSelectedMessages({ restoreBoardScroll: true, boardScrollTop, restoreMessageScroll: true, messageScrollTop, silent: true });
+    if (state.selectedTaskId && reloadMessages) {
+      await loadSelectedMessages({
+        restoreBoardScroll: true,
+        boardScrollTop,
+        restoreMessageScroll: !selectedChanged,
+        messageScrollTop,
+        silent: !loadMessages && !selectedChanged,
+      });
     }
   } finally {
     refreshInFlight = false;
@@ -311,6 +324,12 @@ function prunePersistedLocalMessages(sessionId, fetchedMessages) {
   state.pendingLocalMessages = state.pendingLocalMessages.filter((message) => (
     message.sessionId !== sessionId || !fetchedUserTexts.has(String(message.text || '').trim())
   ));
+}
+
+function mergeTasksById(currentTasks, refreshedTasks) {
+  const byId = new Map(currentTasks.map((task) => [task.id, task]));
+  refreshedTasks.forEach((task) => byId.set(task.id, task));
+  return [...byId.values()].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
 }
 
 function getMessageScrollTop() {

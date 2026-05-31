@@ -38,7 +38,7 @@ export class HermesApiClient {
     return { object: 'list', data: all, limit, offset: 0, has_more: Boolean(last?.has_more) };
   }
 
-  async listMessages(sessionId, { limit = 300, maxContentChars = 8_000 } = {}) {
+  async listMessages(sessionId, { limit = 150, maxContentChars = 3_000 } = {}) {
     const params = new URLSearchParams();
     if (limit !== undefined && limit !== null) params.set('limit', String(limit));
     if (maxContentChars !== undefined && maxContentChars !== null) params.set('max_content_chars', String(maxContentChars));
@@ -66,9 +66,9 @@ export class HermesApiClient {
     return sessionToTask(payload.session || payload);
   }
 
-  async listTasks() {
+  async listTasks(options = {}) {
     try {
-      const data = await this.listSessions();
+      const data = await this.listSessions(options);
       const sessions = Array.isArray(data) ? data : data.sessions || data.data || [];
       return sessions.filter(isUsefulSession).map(sessionToTask).sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
     } catch (error) {
