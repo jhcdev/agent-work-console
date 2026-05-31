@@ -74,19 +74,49 @@ export class HermesApiClient {
 function isUsefulSession(session) {
   const messageCount = session.message_count ?? session.messages?.length ?? 0;
   if (session.source === 'cron') return false;
-  return messageCount > 0 || session.source === 'api_server';
+  return messageCount > 0 || session.source === 'api_server' || hasGatewayActivity(session);
+}
+
+function hasGatewayActivity(session) {
+  const source = String(session.source || '').trim();
+  if (!source || source === 'api_server' || source === 'cli' || source === 'cron') return false;
+  return Boolean(
+    session.last_active
+      || session.updated_at
+      || session.updatedAt
+      || Number(session.api_call_count || 0) > 0
+      || Number(session.tool_call_count || 0) > 0
+      || Number(session.input_tokens || 0) > 0
+      || Number(session.output_tokens || 0) > 0
+  );
 }
 
 function sessionToTask(session) {
   const id = session.id || session.session_id || session.sessionId;
   const title = session.title || session.name || `Hermes session ${String(id).slice(0, 8)}`;
   const messageCount = session.message_count ?? session.messages?.length ?? 0;
+  const source = String(session.source || '').trim();
   return {
     id: String(id), workspaceId: session.workspaceId || 'hermes', title, status: session.status || (session.ended_at ? 'done' : 'running'), priority: 'medium',
-    updatedAt: timestampToIso(session.updated_at || session.updatedAt || session.ended_at || session.started_at) || new Date().toISOString(), owner: session.user || 'Hermes',
-    summary: session.summary || `${messageCount}개 메시지가 저장된 Hermes 세션입니다.`,
+    updatedAt: timestampToIso(session.updated_at || session.updatedAt || session.last_active || session.ended_at || session.started_at) || new Date().toISOString(), owner: session.user || source || 'Hermes',
+    summary: session.summary || session.preview || defaultSessionSummary({ messageCount, source, session }),
     messages: [], logs: [], approvals: [], artifacts: [], messageCount,
   };
+}
+
+function defaultSessionSummary({ messageCount, source, session }) {
+  if (messageCount > 0) return `${messageCount}개 메시지가 저장된 Hermes 세션입니다.`;
+  if (source && source !== 'api_server') {
+    const toolCalls = Number(session.tool_call_count || 0);
+    const apiCalls = Number(session.api_call_count || 0);
+    const parts = [];
+    if (toolCalls > 0) parts.push(`도구 ${toolCalls}회`);
+    if (apiCalls > 0) parts.push(`API ${apiCalls}회`);
+    return parts.length
+      ? `${source} 게이트웨이에서 실행 중인 Hermes 세션입니다 (${parts.join(', ')}).`
+      : `${source} 게이트웨이에서 실행 중인 Hermes 세션입니다.`;
+  }
+  return `${messageCount}개 메시지가 저장된 Hermes 세션입니다.`;
 }
 
 export function normalizeMessage(message) {

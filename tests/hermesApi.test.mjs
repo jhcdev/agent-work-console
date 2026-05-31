@@ -27,13 +27,14 @@ test('returns mock tasks when API call fails and fallback is enabled', async () 
   assert.ok(tasks[0].title);
 });
 
-test('maps only useful Hermes sessions to newest-first task cards', async () => {
+test('maps useful Hermes sessions including active gateway rows to newest-first task cards', async () => {
   const fetcher = async () => new Response(JSON.stringify({
     object: 'list',
     data: [
       { id: 'empty-cron', source: 'cron', message_count: 0, preview: '', started_at: 1780000000 },
       { id: 'scheduled-cron', source: 'cron', message_count: 32, preview: 'scheduled task', started_at: 1780000001 },
       { id: 'empty-discord', source: 'discord', title: '빈 세션', message_count: 0, preview: '', started_at: 1780000002 },
+      { id: 'active-discord', source: 'discord', title: '게이트웨이 실행 세션', message_count: 0, preview: '', api_call_count: 7, tool_call_count: 2, last_active: 1780000005 },
       { id: 'chat-session', source: 'discord', title: '실제 작업 세션', message_count: 4, preview: '작업 이어서', updated_at: 1780000003 },
       { id: 'new-api-session', source: 'api_server', title: '새 API 세션', message_count: 0, updated_at: 1780000004 },
     ],
@@ -42,9 +43,11 @@ test('maps only useful Hermes sessions to newest-first task cards', async () => 
 
   const tasks = await client.listTasks();
 
-  assert.deepEqual(tasks.map((task) => task.id), ['new-api-session', 'chat-session']);
+  assert.deepEqual(tasks.map((task) => task.id), ['active-discord', 'new-api-session', 'chat-session']);
   assert.equal(tasks[0].messageCount, 0);
-  assert.equal(tasks[1].messageCount, 4);
+  assert.equal(tasks[0].updatedAt, '2026-05-28T20:26:45.000Z');
+  assert.equal(tasks[1].messageCount, 0);
+  assert.equal(tasks[2].messageCount, 4);
 });
 
 test('creates a new Hermes session and maps the response to a task', async () => {
